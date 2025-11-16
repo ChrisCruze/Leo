@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leo 🦁 | AI-Powered Event Engagement Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+        }
+        
+        .logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        h1 {
+            font-size: 3.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .tagline {
+            font-size: 1.5em;
+            opacity: 0.95;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .badges {
+            margin-top: 20px;
+        }
+        
+        .badges img {
+            margin: 0 5px;
+        }
+        
+        .main-content {
+            background: white;
+            border-radius: 20px;
+            padding: 60px;
+            margin: 40px auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+        
+        .feature {
+            padding: 30px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .feature:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+        
+        .feature h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.4em;
+        }
+        
+        .cta-section {
+            text-align: center;
+            padding: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            color: white;
+            margin: 40px 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            padding: 15px 40px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin: 10px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .cta-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        
+        .metrics {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin: 40px 0;
+        }
+        
+        .metric {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .metric-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: white;
+        }
+        
+        footer a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+        }
+        
+        footer a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5em; }
+            .main-content { padding: 30px; }
+            .features { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🦁</div>
+            <h1>Leo</h1>
+            <p class="tagline">LLM-Powered Agent for Personalized Event Outreach and User Engagement</p>
+            <div class="badges">
+                <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
+                <img src="https://img.shields.io/badge/Status-Active%20Development-green.svg" alt="Status">
+                <img src="https://img.shields.io/badge/Platform-Cuculi-purple.svg" alt="Platform">
+            </div>
+        </header>
+        
+        <div class="main-content">
+            <section>
+                <h2 style="text-align: center; color: #667eea; margin-bottom: 30px;">What is Leo?</h2>
+                <p style="font-size: 1.2em; text-align: center; max-width: 800px; margin: 0 auto;">
+                    Leo is an intelligent LLM-powered agent designed to increase event attendance and deepen user engagement 
+                    on the Cuculi platform. Through sophisticated event-user matching, personalized outreach generation, and 
+                    human-in-the-loop quality control, Leo operates as a semi-autonomous engagement engine.
+                </p>
+            </section>
+            
+            <section class="metrics">
+                <div class="metric">
+                    <div class="metric-value">+20%</div>
+                    <div class="metric-label">Attendance Increase</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">85%+</div>
+                    <div class="metric-label">Message Quality</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">15%+</div>
+                    <div class="metric-label">Reactivation Rate</div>
+                </div>
+            </section>
+            
+            <section class="features">
+                <div class="feature">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Intelligent Matching</h3>
+                    <p>Event-user pairing based on topical alignment, past behavior, and interest-based recommendations.</p>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">✍️</div>
+                    <h3>Personalized Messaging</h3>
+                    <p>Context-aware message generation with tone calibration and behavior-based nudges.</p>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">🔄</div>
+                    <h3>User Reactivation</h3>
+                    <p>Re-engage dormant users with compelling, personalized invitations tailored to their preferences.</p>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">⚖️</div>
+                    <h3>Quality Assurance</h3>
+                    <p>Automated quality checks and human-in-the-loop review ensure message excellence.</p>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <h3>Performance Tracking</h3>
+                    <p>Comprehensive metrics for attendance attribution, quality scoring, and efficiency analysis.</p>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">🚀</div>
+                    <h3>Multi-Channel</h3>
+                    <p>Support for SMS and Email with optimized scheduling and frequency controls.</p>
+                </div>
+            </section>
+            
+            <section class="cta-section">
+                <h2 style="margin-bottom: 20px;">Get Started with Leo</h2>
+                <p style="margin-bottom: 30px; opacity: 0.95;">Join the future of intelligent event engagement</p>
+                <a href="https://github.com/ChrisCruze/Leo" class="cta-button">🐛 View on GitHub</a>
+                <a href="https://github.com/ChrisCruze/Leo/blob/main/README.md" class="cta-button">📚 Read Documentation</a>
+            </section>
+            
+            <section style="margin-top: 60px;">
+                <h2 style="text-align: center; color: #667eea; margin-bottom: 30px;">How Leo Works</h2>
+                <div style="background: #f5f7fa; padding: 30px; border-radius: 12px;">
+                    <ol style="font-size: 1.1em; line-height: 2;">
+                        <li><strong>Identify Target Events</strong> - Scan upcoming schedule and prioritize events</li>
+                        <li><strong>Identify Target Users</strong> - Select users by theme and re-engagement potential</li>
+                        <li><strong>Pair Events With Users</strong> - Match via topical alignment and preferences</li>
+                        <li><strong>Generate Personalized Messages</strong> - Draft tailored outreach considering context</li>
+                        <li><strong>Auto Quality Check</strong> - Run automated checks for quality and accuracy</li>
+                        <li><strong>Human Review (HITL)</strong> - Present drafts to human reviewers for validation</li>
+                        <li><strong>Export for Distribution</strong> - Format approved messages for scheduler</li>
+                    </ol>
+                </div>
+            </section>
+        </div>
+        
+        <footer>
+            <p style="margin-bottom: 20px; font-size: 1.2em;">Built with ❤️ by the Cuculi team</p>
+            <div>
+                <a href="https://github.com/ChrisCruze/Leo">GitHub</a>
+                <a href="https://github.com/ChrisCruze/Leo/issues">Issues</a>
+                <a href="https://github.com/ChrisCruze/Leo/blob/main/README.md">Documentation</a>
+                <a href="https://github.com/ChrisCruze">@ChrisCruze</a>
+            </div>
+            <p style="margin-top: 20px; opacity: 0.8;">&copy; 2025 Cuculi | Active Development | v0.1.0</p>
+        </footer>
+    </div>
+</body>
+</html>
