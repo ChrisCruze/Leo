@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leo Dashboard · Overview & HITL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .status-pending { background-color: #fef3c7; color: #92400e; }
+        .status-approved { background-color: #d1fae5; color: #065f46; }
+        .status-denied { background-color: #fee2e2; color: #991b1b; }
+        .status-sent { background-color: #dbeafe; color: #1e40af; }
+        .confidence-high { color: #059669; font-weight: 600; }
+        .confidence-medium { color: #d97706; font-weight: 600; }
+        .confidence-low { color: #dc2626; font-weight: 600; }
+        .nav-active { background-color: #eef2ff; color: #4338ca; }
+        .collapsible-panel[aria-expanded="false"] .collapsible-body { display: none; }
+        .resize-handle { position: absolute; right: 0; top: 0; width: 6px; height: 100%; cursor: col-resize; }
+        mark { background: #fef08a; padding: 0 2px; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="min-h-screen flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex md:flex-col sticky top-0 h-screen z-40">
+            <div class="px-5 py-6 border-b border-gray-200">
+                <div class="text-sm text-gray-500">Leo Dashboard</div>
+                <div class="text-xl font-semibold text-gray-900">Command Center</div>
+            </div>
+            <nav class="flex-1 overflow-y-auto py-4" id="side-nav">
+                <button class="w-full text-left px-5 py-3 flex items-center gap-3 text-gray-700 hover:bg-indigo-50 rounded-r-lg section-link nav-active" data-section="overview">
+                    <i class="fas fa-chart-line w-5"></i><span>Overview</span>
+                </button>
+                <button class="w-full text-left px-5 py-3 flex items-center gap-3 text-gray-700 hover:bg-indigo-50 rounded-r-lg section-link" data-section="messages">
+                    <i class="fas fa-comment-dots w-5"></i><span>Message Queue</span>
+                </button>
+                <button class="w-full text-left px-5 py-3 flex items-center gap-3 text-gray-700 hover:bg-indigo-50 rounded-r-lg section-link" data-section="events">
+                    <i class="fas fa-calendar w-5"></i><span>Events</span>
+                </button>
+                <button class="w-full text-left px-5 py-3 flex items-center gap-3 text-gray-700 hover:bg-indigo-50 rounded-r-lg section-link" data-section="users">
+                    <i class="fas fa-users w-5"></i><span>Users</span>
+                </button>
+                <button class="w-full text-left px-5 py-3 flex items-center gap-3 text-gray-700 hover:bg-indigo-50 rounded-r-lg section-link" data-section="matches">
+                    <i class="fas fa-shuffle w-5"></i><span>Matches</span>
+                </button>
+                <button class="w-full text-left px-5 py-3 flex items-center gap-3 text-gray-700 hover:bg-indigo-50 rounded-r-lg section-link" data-section="settings">
+                    <i class="fas fa-gear w-5"></i><span>Settings</span>
+                </button>
+            </nav>
+            <div class="px-5 py-4 border-t border-gray-200 text-xs text-gray-500">
+                <div>Auto-refresh every 30s</div>
+                <div id="last-updated" class="font-medium text-gray-700">--</div>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <div class="flex-1 flex flex-col">
+            <!-- Header -->
+            <header class="bg-white border-b border-gray-200 px-4 md:px-8 py-4 sticky top-0 z-30 flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Leo HITL Dashboard</h1>
+                    <p class="text-sm text-gray-600">Human-in-the-Loop message review & monitoring</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="refreshData()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                </div>
+            </header>
+
+            <main class="p-4 md:p-8 space-y-8">
+                <!-- Overview Section -->
+                <section id="section-overview" class="section-block">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-900">Overview</h2>
+                            <p class="text-sm text-gray-600">Key metrics, trends, and quick filters.</p>
+                        </div>
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <div class="flex items-center gap-2 text-sm">
+                                <span class="text-gray-600">Time range</span>
+                                <select id="overview-range" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="updateMetrics()">
+                                    <option value="all">All time</option>
+                                    <option value="7d">Last 7 days</option>
+                                    <option value="30d">Last 30 days</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <span class="text-gray-600">Channel</span>
+                                <select id="overview-channel" class="border border-gray-300 rounded-lg px-3 py-2 text-sm" onchange="updateMetrics()">
+                                    <option value="all">All</option>
+                                    <option value="sms">SMS</option>
+                                    <option value="email">Email</option>
+                                    <option value="push">Push</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mt-4">
+                        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                            <div class="text-sm text-indigo-600 font-medium flex items-center justify-between">
+                                Messages Generated
+                                <span id="metric-trend-messages" class="text-xs text-gray-500"></span>
+                            </div>
+                            <div id="metric-messages-generated" class="text-3xl font-bold text-gray-900 mt-1">0</div>
+                            <canvas id="chart-messages" class="mt-3 h-16 w-full"></canvas>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                            <div class="text-sm text-emerald-600 font-medium flex items-center justify-between">
+                                Approval Rate
+                                <span id="metric-trend-approval" class="text-xs text-gray-500"></span>
+                            </div>
+                            <div id="metric-approval-rate" class="text-3xl font-bold text-gray-900 mt-1">0%</div>
+                            <canvas id="chart-approval" class="mt-3 h-16 w-full"></canvas>
+                        </div>
+                        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                            <div class="text-sm text-purple-600 font-medium flex items-center justify-between">
+                                Events Assessed
+                                <span id="metric-trend-events" class="text-xs text-gray-500"></span>
+                            </div>
+                            <div id="metric-events-assessed" class="text-3xl font-bold text-gray-900 mt-1">0</div>
+                            <canvas id="chart-events" class="mt-3 h-16 w-full"></canvas>
+                        </div>
+                            <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                            <div class="text-sm text-orange-600 font-medium flex items-center justify-between">
+                                Users Reached
+                                <span id="metric-trend-users" class="text-xs text-gray-500"></span>
+                            </div>
+                            <div id="metric-users-reached" class="text-3xl font-bold text-gray-900 mt-1">0</div>
+                            <canvas id="chart-users" class="mt-3 h-16 w-full"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Message Queue Section -->
+                <section id="section-messages" class="section-block hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-900">Message Queue</h2>
+                            <p class="text-sm text-gray-600">Search, filter, and review messages.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <a href="../messages-review/messages-review.html" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm">
+                                <i class="fas fa-external-link-alt mr-2"></i>Open Messages Review
+                            </a>
+                            <select id="filter-status" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                <option value="all">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="denied">Denied</option>
+                                <option value="sent">Sent</option>
+                            </select>
+                            <div class="relative">
+                                <input id="search-messages" type="text" placeholder="Search messages..." class="px-3 py-2 border border-gray-300 rounded-lg text-sm w-64">
+                                <i class="fas fa-search text-gray-400 absolute right-3 top-2.5 text-sm"></i>
+                            </div>
+                            <div class="relative">
+                                <button class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white hover:bg-gray-50" onclick="toggleColumnMenu('messages')">
+                                    Columns
+                                </button>
+                                <div id="column-menu-messages" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg p-3 space-y-2 z-20">
+                                    <!-- populated at runtime -->
+                                </div>
+                            </div>
+                            <div class="relative export-menu-container">
+                                <button class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white hover:bg-gray-50 flex items-center gap-2" onclick="toggleExportMenu('messages')">
+                                    <i class="fas fa-download"></i>
+                                    Export
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </button>
+                                <div id="export-menu-messages" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg p-2 space-y-1 z-20">
+                                    <button onclick="exportTable('messages', 'csv')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-file-csv text-green-600"></i>
+                                        Export as CSV
+                                    </button>
+                                    <button onclick="exportTable('messages', 'markdown')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-file-code text-blue-600"></i>
+                                        Export as Markdown
+                                    </button>
+                                    <hr class="my-1">
+                                    <button onclick="copyTable('messages', 'csv')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-copy text-indigo-600"></i>
+                                        Copy CSV to Clipboard
+                                    </button>
+                                    <button onclick="copyTable('messages', 'markdown')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-copy text-indigo-600"></i>
+                                        Copy Markdown to Clipboard
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg border border-gray-200 shadow-sm collapsible-panel" aria-expanded="true">
+                        <div class="p-3 border-b border-gray-200 flex items-center justify-between cursor-pointer" onclick="toggleCollapsible(this)">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-chevron-down text-sm text-gray-500"></i>
+                                <span class="text-sm font-semibold text-gray-900">Pending Messages</span>
+                            </div>
+                            <span class="text-xs text-gray-500">Click to collapse/expand</span>
+                        </div>
+                        <div class="collapsible-body">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200" id="table-messages">
+                                    <thead class="bg-gray-50">
+                                        <tr id="messages-headers"></tr>
+                                        <tr id="messages-filters" class="bg-white"></tr>
+                                    </thead>
+                                    <tbody id="messages-tbody" class="bg-white divide-y divide-gray-200">
+                                        <tr>
+                                            <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                                                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                                <div>Loading messages...</div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Events Section -->
+                <section id="section-events" class="section-block hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-900">Events</h2>
+                            <p class="text-sm text-gray-600">Search and slice future events.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="relative">
+                                <input id="search-events" type="text" placeholder="Search events..." class="px-3 py-2 border border-gray-300 rounded-lg text-sm w-56">
+                                <i class="fas fa-search text-gray-400 absolute right-3 top-2.5 text-sm"></i>
+                            </div>
+                            <div class="relative">
+                                <button class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white hover:bg-gray-50" onclick="toggleColumnMenu('events')">Columns</button>
+                                <div id="column-menu-events" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg p-3 space-y-2 z-20"></div>
+                            </div>
+                            <div class="relative export-menu-container">
+                                <button class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white hover:bg-gray-50 flex items-center gap-2" onclick="toggleExportMenu('events')">
+                                    <i class="fas fa-download"></i>
+                                    Export
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </button>
+                                <div id="export-menu-events" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg p-2 space-y-1 z-20">
+                                    <button onclick="exportTable('events', 'csv')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-file-csv text-green-600"></i>
+                                        Export as CSV
+                                    </button>
+                                    <button onclick="exportTable('events', 'markdown')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-file-code text-blue-600"></i>
+                                        Export as Markdown
+                                    </button>
+                                    <hr class="my-1">
+                                    <button onclick="copyTable('events', 'csv')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-copy text-indigo-600"></i>
+                                        Copy CSV to Clipboard
+                                    </button>
+                                    <button onclick="copyTable('events', 'markdown')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-copy text-indigo-600"></i>
+                                        Copy Markdown to Clipboard
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg border border-gray-200 shadow-sm collapsible-panel" aria-expanded="true">
+                        <div class="p-3 border-b border-gray-200 flex items-center justify-between cursor-pointer" onclick="toggleCollapsible(this)">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-chevron-down text-sm text-gray-500"></i>
+                                <span class="text-sm font-semibold text-gray-900">Future Events</span>
+                            </div>
+                            <span class="text-xs text-gray-500">Click to collapse/expand</span>
+                        </div>
+                        <div class="collapsible-body">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200" id="table-events">
+                                    <thead class="bg-gray-50">
+                                        <tr id="events-headers"></tr>
+                                        <tr id="events-filters" class="bg-white"></tr>
+                                    </thead>
+                                    <tbody id="events-tbody" class="bg-white divide-y divide-gray-200">
+                                        <tr>
+                                            <td colspan="6" class="px-6 py-8 text-center text-gray-500">Loading events...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Users Section -->
+                <section id="section-users" class="section-block hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-900">Users</h2>
+                            <p class="text-sm text-gray-600">Enriched users and segments.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="relative">
+                                <input id="search-users" type="text" placeholder="Search users..." class="px-3 py-2 border border-gray-300 rounded-lg text-sm w-56">
+                                <i class="fas fa-search text-gray-400 absolute right-3 top-2.5 text-sm"></i>
+                            </div>
+                            <div class="relative">
+                                <button class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white hover:bg-gray-50" onclick="toggleColumnMenu('users')">Columns</button>
+                                <div id="column-menu-users" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg p-3 space-y-2 z-20"></div>
+                            </div>
+                            <div class="relative export-menu-container">
+                                <button class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white hover:bg-gray-50 flex items-center gap-2" onclick="toggleExportMenu('users')">
+                                    <i class="fas fa-download"></i>
+                                    Export
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </button>
+                                <div id="export-menu-users" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg p-2 space-y-1 z-20">
+                                    <button onclick="exportTable('users', 'csv')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-file-csv text-green-600"></i>
+                                        Export as CSV
+                                    </button>
+                                    <button onclick="exportTable('users', 'markdown')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-file-code text-blue-600"></i>
+                                        Export as Markdown
+                                    </button>
+                                    <hr class="my-1">
+                                    <button onclick="copyTable('users', 'csv')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-copy text-indigo-600"></i>
+                                        Copy CSV to Clipboard
+                                    </button>
+                                    <button onclick="copyTable('users', 'markdown')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-copy text-indigo-600"></i>
+                                        Copy Markdown to Clipboard
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg border border-gray-200 shadow-sm collapsible-panel" aria-expanded="true">
+                        <div class="p-3 border-b border-gray-200 flex items-center justify-between cursor-pointer" onclick="toggleCollapsible(this)">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-chevron-down text-sm text-gray-500"></i>
+                                <span class="text-sm font-semibold text-gray-900">Enriched Users</span>
+                            </div>
+                            <span class="text-xs text-gray-500">Click to collapse/expand</span>
+                        </div>
+                        <div class="collapsible-body">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200" id="table-users">
+                                    <thead class="bg-gray-50">
+                                        <tr id="users-headers"></tr>
+                                        <tr id="users-filters" class="bg-white"></tr>
+                                    </thead>
+                                    <tbody id="users-tbody" class="bg-white divide-y divide-gray-200">
+                                        <tr>
+                                            <td colspan="6" class="px-6 py-8 text-center text-gray-500">Loading users...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Matches Section -->
+                <section id="section-matches" class="section-block hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-900">Matches</h2>
+                            <p class="text-sm text-gray-600">User to event matching details.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="relative">
+                                <input id="search-matches" type="text" placeholder="Search matches..." class="px-3 py-2 border border-gray-300 rounded-lg text-sm w-56">
+                                <i class="fas fa-search text-gray-400 absolute right-3 top-2.5 text-sm"></i>
+                            </div>
+                            <div class="relative">
+                                <button class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white hover:bg-gray-50" onclick="toggleColumnMenu('matches')">Columns</button>
+                                <div id="column-menu-matches" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg p-3 space-y-2 z-20"></div>
+                            </div>
+                            <div class="relative export-menu-container">
+                                <button class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white hover:bg-gray-50 flex items-center gap-2" onclick="toggleExportMenu('matches')">
+                                    <i class="fas fa-download"></i>
+                                    Export
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </button>
+                                <div id="export-menu-matches" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg p-2 space-y-1 z-20">
+                                    <button onclick="exportTable('matches', 'csv')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-file-csv text-green-600"></i>
+                                        Export as CSV
+                                    </button>
+                                    <button onclick="exportTable('matches', 'markdown')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-file-code text-blue-600"></i>
+                                        Export as Markdown
+                                    </button>
+                                    <hr class="my-1">
+                                    <button onclick="copyTable('matches', 'csv')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-copy text-indigo-600"></i>
+                                        Copy CSV to Clipboard
+                                    </button>
+                                    <button onclick="copyTable('matches', 'markdown')" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2">
+                                        <i class="fas fa-copy text-indigo-600"></i>
+                                        Copy Markdown to Clipboard
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg border border-gray-200 shadow-sm collapsible-panel" aria-expanded="true">
+                        <div class="p-3 border-b border-gray-200 flex items-center justify-between cursor-pointer" onclick="toggleCollapsible(this)">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-chevron-down text-sm text-gray-500"></i>
+                                <span class="text-sm font-semibold text-gray-900">User-Event Matches</span>
+                            </div>
+                            <span class="text-xs text-gray-500">Click to collapse/expand</span>
+                        </div>
+                        <div class="collapsible-body">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200" id="table-matches">
+                                    <thead class="bg-gray-50">
+                                        <tr id="matches-headers"></tr>
+                                        <tr id="matches-filters" class="bg-white"></tr>
+                                    </thead>
+                                    <tbody id="matches-tbody" class="bg-white divide-y divide-gray-200">
+                                        <tr>
+                                            <td colspan="5" class="px-6 py-8 text-center text-gray-500">Loading matches...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Settings placeholder -->
+                <section id="section-settings" class="section-block hidden">
+                    <h2 class="text-xl font-semibold text-gray-900 mb-2">Settings</h2>
+                    <p class="text-sm text-gray-600">Coming soon: environment and reviewer preferences.</p>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Approval Modal -->
+    <div id="approval-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Review Message</h3>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Message Text</label>
+                    <div id="modal-message-text" class="p-3 bg-gray-50 rounded-lg text-sm border border-gray-200"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">User</label>
+                        <div id="modal-user-info" class="p-3 bg-gray-50 rounded-lg text-sm border border-gray-200"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Event</label>
+                        <div id="modal-event-info" class="p-3 bg-gray-50 rounded-lg text-sm border border-gray-200"></div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Confidence Score</label>
+                    <div id="modal-confidence" class="p-3 bg-gray-50 rounded-lg text-sm border border-gray-200"></div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Reasoning</label>
+                    <div id="modal-reasoning" class="p-3 bg-gray-50 rounded-lg text-sm border border-gray-200"></div>
+                </div>
+                <div id="denial-reason-section" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Denial Reason</label>
+                    <select id="denial-reason" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <option value="">Select reason...</option>
+                        <option value="tone">Tone Issues</option>
+                        <option value="incorrect_details">Incorrect Details</option>
+                        <option value="wrong_user">Wrong User Match</option>
+                        <option value="policy">Policy Violation</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <textarea id="denial-comment" placeholder="Additional comments (optional)" class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-200 flex justify-end gap-3">
+                <button onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button id="deny-btn" onclick="denyMessage()" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 hidden">Deny</button>
+                <button id="approve-btn" onclick="approveMessage()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">Approve</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyASK7guQOA1_cuiQWF8Q0Qu93cR2hU8ssQ",
+          authDomain: "cuculi-2c473.firebaseapp.com",
+          databaseURL: "https://cuculi-2c473.firebaseio.com",
+          projectId: "cuculi-2c473",
+          storageBucket: "cuculi-2c473.firebasestorage.app",
+          messagingSenderId: "500400804498",
+          appId: "1:500400804498:web:b59af78ac6906488b34c4b",
+          measurementId: "G-K1R9LF1XXZ"
+        };
+        const FIREBASE_DATABASE_URL = firebaseConfig.databaseURL;
+        const BASE_PATH = 'Leo';
+
+        // Notification API Configuration
+        const NOTIFICATION_API_URL = 'https://api.cuculi.com/notification';
+        const NOTIFICATION_AUTH_TOKEN = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhdXRoVXNlcklkIjoiNWQxNGEyODg5YzQyOWU0MGI2MDM5ZWJhIn0.TEVZLJlMNZlDkZ6L93y62WrTRdEQo0bEWSTRgxotDxg';
+        const LEO_USER_ID = '5d14a2889c429e40b6039eba';
+        const SENDER_IMAGE_URL = 'https://storage.cuculi.com/production/961e91f8-7e5d-4672-9791-49a5f1ad7da8image.jpg';
+
+        let currentData = { messages: [], events: [], users: [], matches: [] };
+        let currentMessageId = null;
+        const tableState = {
+            messages: { search: '', columnFilters: {}, sort: [], visible: new Set(), columns: [] },
+            events: { search: '', columnFilters: {}, sort: [], visible: new Set(), columns: [] },
+            users: { search: '', columnFilters: {}, sort: [], visible: new Set(), columns: [] },
+            matches: { search: '', columnFilters: {}, sort: [], visible: new Set(), columns: [] },
+        };
+        const STATUS_FILTER_OPTIONS = [
+            { value: 'all', label: 'All Status' },
+            { value: 'pending', label: 'Pending' },
+            { value: 'approved', label: 'Approved' },
+            { value: 'denied', label: 'Denied' },
+            { value: 'sent', label: 'Sent' },
+        ];
+        const TABLE_CONFIG = {
+            messages: {
+                columns: [
+                    { id: 'message_text', label: 'Message', sortable: true, searchable: true, accessor: m => m.message_text || 'N/A' },
+                    { id: 'user', label: 'User', sortable: true, searchable: true, accessor: m => m.user_name || 'N/A', secondary: m => m.user_email || '' },
+                    { id: 'event', label: 'Event', sortable: true, searchable: true, accessor: m => m.event_name || 'N/A' },
+                    { id: 'eventDate', label: 'Event Date', sortable: true, searchable: false, accessor: m => getEventDate(m) },
+                    { id: 'campaign', label: 'Campaign', sortable: true, searchable: true, accessor: m => m.campaign || 'N/A' },
+                    { id: 'confidence', label: 'Confidence', sortable: true, searchable: false, accessor: m => m.similarity_score || m.confidence_percentage || 0 },
+                    { id: 'status', label: 'Status', sortable: true, searchable: false, accessor: m => m.status || 'pending' },
+                    { id: 'actions', label: 'Actions', sortable: false, searchable: false, accessor: () => '' },
+                ],
+                defaults: ['message_text','user','event','eventDate','campaign','confidence','status','actions']
+            },
+            events: {
+                columns: [
+                    { id: 'name', label: 'Name', sortable: true, searchable: true, accessor: e => e.name || 'N/A' },
+                    { id: 'venue', label: 'Venue', sortable: true, searchable: true, accessor: e => e.venueName || e.venue || 'N/A' },
+                    { id: 'neighborhood', label: 'Neighborhood', sortable: true, searchable: true, accessor: e => e.neighborhood || 'N/A' },
+                    { id: 'startDate', label: 'Date', sortable: true, searchable: false, accessor: e => e.startDate ? new Date(e.startDate).toLocaleString() : 'N/A' },
+                    { id: 'participants', label: 'Participants', sortable: true, searchable: false, accessor: e => e.participantCount || (e.participants ? e.participants.length : 0) },
+                    { id: 'fill', label: 'Fill %', sortable: true, searchable: false, accessor: e => e.participationPercentage || 0 },
+                    { id: 'categories', label: 'Categories', sortable: false, searchable: true, accessor: e => Array.isArray(e.categories) ? e.categories.join(', ') : e.categories || 'N/A' },
+                    { id: 'features', label: 'Features', sortable: false, searchable: true, accessor: e => Array.isArray(e.features) ? e.features.join(', ') : e.features || 'N/A' },
+                    { id: 'type', label: 'Type', sortable: true, searchable: true, accessor: e => e.type || 'N/A' },
+                    { id: 'capacity', label: 'Capacity', sortable: true, searchable: false, accessor: e => e.maxParticipants || 'N/A' },
+                ],
+                defaults: ['name','venue','neighborhood','startDate','participants','fill','categories','type','capacity']
+            },
+            users: {
+                columns: [
+                    { id: 'name', label: 'Name', sortable: true, searchable: true, accessor: u => `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'N/A' },
+                    { id: 'email', label: 'Email', sortable: true, searchable: true, accessor: u => u.email || 'N/A' },
+                    { id: 'homeNeighborhood', label: 'Neighborhood', sortable: true, searchable: true, accessor: u => u.homeNeighborhood || 'N/A' },
+                    { id: 'gender', label: 'Gender', sortable: true, searchable: true, accessor: u => u.gender || 'N/A' },
+                    { id: 'occupation', label: 'Occupation', sortable: true, searchable: true, accessor: u => u.occupation || 'N/A' },
+                    { id: 'interests', label: 'Interests', sortable: false, searchable: true, accessor: u => Array.isArray(u.interests) ? u.interests.join(', ') : u.interests || 'N/A' },
+                    { id: 'journey_stage', label: 'Journey Stage', sortable: true, searchable: true, accessor: u => u.journey_stage || 'N/A' },
+                    { id: 'value_segment', label: 'Value Segment', sortable: true, searchable: true, accessor: u => u.value_segment || 'N/A' },
+                    { id: 'event_count', label: 'Events', sortable: true, searchable: false, accessor: u => u.event_count || u.eventCount || 0 },
+                ],
+                defaults: ['name','email','homeNeighborhood','gender','occupation','interests','journey_stage','value_segment','event_count']
+            },
+            matches: {
+                columns: [
+                    { id: 'user', label: 'User', sortable: true, searchable: true, accessor: m => m.user_name || 'N/A' },
+                    { id: 'event', label: 'Event', sortable: true, searchable: true, accessor: m => m.event_name || 'N/A' },
+                    { id: 'confidence', label: 'Confidence', sortable: true, searchable: false, accessor: m => m.confidence_percentage || 0 },
+                    { id: 'reasoning', label: 'Reasoning', sortable: false, searchable: true, accessor: m => m.reasoning || '' },
+                    { id: 'matched_at', label: 'Matched At', sortable: true, searchable: false, accessor: m => m.matched_at ? new Date(m.matched_at).toLocaleString() : 'N/A' },
+                ],
+                defaults: ['user','event','confidence','reasoning','matched_at']
+            }
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initSections();
+            initTables();
+            loadAllData();
+            setInterval(loadAllData, 30000);
+        });
+
+        function initSections() {
+            document.querySelectorAll('.section-link').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const target = btn.dataset.section;
+                    document.querySelectorAll('.section-block').forEach(s => s.classList.add('hidden'));
+                    document.querySelector(`#section-${target}`).classList.remove('hidden');
+                    document.querySelectorAll('.section-link').forEach(b => b.classList.remove('nav-active'));
+                    btn.classList.add('nav-active');
+                });
+            });
+        }
+
+        function initTables() {
+            Object.keys(TABLE_CONFIG).forEach(key => {
+                const cfg = TABLE_CONFIG[key];
+                tableState[key].columns = cfg.columns;
+                tableState[key].visible = new Set(cfg.defaults);
+                buildHeader(key);
+                buildFilterRow(key);
+                buildColumnMenu(key);
+                updateColumnVisibility(key);
+                const searchInput = document.getElementById(`search-${key}`);
+                if (searchInput) {
+                    searchInput.addEventListener('input', debounce(() => renderTable(key), 200));
+                }
+            });
+            const statusSelect = document.getElementById('filter-status');
+            if (statusSelect) statusSelect.addEventListener('change', () => renderTable('messages'));
+        }
+
+        function refreshStatusFilterOptions() {
+            const select = document.getElementById('filter-status');
+            if (!select) return;
+            const currentValue = select.value || 'all';
+            select.innerHTML = '';
+
+            STATUS_FILTER_OPTIONS.forEach(opt => {
+                const optionEl = document.createElement('option');
+                optionEl.value = opt.value;
+                optionEl.textContent = opt.label;
+                optionEl.dataset.type = 'status';
+                select.appendChild(optionEl);
+            });
+
+            const campaigns = Array.from(
+                new Set(
+                    currentData.messages
+                        .map(m => m.campaign)
+                        .filter(Boolean)
+                        .map(c => c.toString().trim())
+                )
+            ).filter(Boolean).sort((a, b) => a.localeCompare(b));
+
+            campaigns.forEach(campaign => {
+                const optionEl = document.createElement('option');
+                optionEl.value = `campaign:${campaign}`;
+                optionEl.textContent = `Campaign: ${campaign}`;
+                optionEl.dataset.type = 'campaign';
+                select.appendChild(optionEl);
+            });
+
+            const hasCurrent = Array.from(select.options).some(opt => opt.value === currentValue);
+            select.value = hasCurrent ? currentValue : 'all';
+        }
+
+        // Collapsible
+        function toggleCollapsible(header) {
+            const panel = header.closest('.collapsible-panel');
+            const expanded = panel.getAttribute('aria-expanded') === 'true';
+            panel.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+            const icon = header.querySelector('i');
+            if (icon) icon.classList.toggle('fa-rotate-180', !expanded);
+        }
+
+        function toggleColumnMenu(tableKey) {
+            const menu = document.getElementById(`column-menu-${tableKey}`);
+            menu.classList.toggle('hidden');
+        }
+
+        function toggleExportMenu(tableKey) {
+            const menu = document.getElementById(`export-menu-${tableKey}`);
+            menu.classList.toggle('hidden');
+            // Close other export menus
+            ['messages', 'events', 'users', 'matches'].forEach(key => {
+                if (key !== tableKey) {
+                    const otherMenu = document.getElementById(`export-menu-${key}`);
+                    if (otherMenu) otherMenu.classList.add('hidden');
+                }
+            });
+        }
+
+        // Close menus when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.export-menu-container')) {
+                ['messages', 'events', 'users', 'matches'].forEach(key => {
+                    const menu = document.getElementById(`export-menu-${key}`);
+                    if (menu) menu.classList.add('hidden');
+                });
+            }
+        });
+
+        // Firebase Data Loading
+        async function loadAllData() {
+            try {
+                await Promise.all([loadMessages(), loadEvents(), loadUsers(), loadMatches()]);
+                updateMetrics();
+                updateLastUpdated();
+                drawTrendCharts();
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        async function loadMessages() {
+            try {
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`);
+                const data = await response.json();
+                if (data) {
+                    if (data.messages) {
+                        if (Array.isArray(data.messages)) {
+                            currentData.messages = data.messages.map((msg, idx) => ({ ...msg, _id: msg.user_phone || msg.user_email || `msg_${idx}` }));
+                        } else {
+                            currentData.messages = Object.entries(data.messages).map(([key, msg]) => ({ ...msg, _id: key }));
+                        }
+                    } else if (Array.isArray(data)) {
+                        currentData.messages = data.map((msg, idx) => ({ ...msg, _id: msg.user_phone || msg.user_email || `msg_${idx}` }));
+                    } else {
+                        currentData.messages = Object.entries(data)
+                            .filter(([key]) => key !== 'count' && key !== 'updatedAt')
+                            .map(([key, msg]) => ({ ...msg, _id: key }));
+                    }
+                } else {
+                    currentData.messages = [];
+                }
+                refreshStatusFilterOptions();
+                renderMessages();
+            } catch (error) {
+                console.error('Error loading messages:', error);
+                currentData.messages = [];
+                refreshStatusFilterOptions();
+                renderMessages();
+            }
+        }
+
+        async function loadEvents() {
+            try {
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/events.json`);
+                const data = await response.json();
+                if (data) {
+                    // Handle new structure: /Leo/events/{event_id} (object with event_id keys)
+                    if (data.events) {
+                        // Old structure: {events: [...], count: N, updatedAt: ...}
+                        currentData.events = Array.isArray(data.events) ? data.events : Object.values(data.events);
+                    } else if (!Array.isArray(data) && typeof data === 'object') {
+                        // New structure: {event_id: {...}, event_id2: {...}}
+                        // Filter out metadata keys
+                        currentData.events = Object.entries(data)
+                            .filter(([key]) => key !== 'count' && key !== 'updatedAt')
+                            .map(([key, event]) => ({ ...event, _id: key, id: key }));
+                    } else {
+                        currentData.events = [];
+                    }
+                } else {
+                    currentData.events = [];
+                }
+                renderEvents();
+            } catch (error) {
+                console.error('Error loading events:', error);
+                currentData.events = [];
+                renderEvents();
+            }
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/users.json`);
+                const data = await response.json();
+                if (data) {
+                    // Handle new structure: /Leo/users/{user_id} (object with user_id keys)
+                    if (data.users) {
+                        // Old structure: {users: [...], count: N, updatedAt: ...}
+                        currentData.users = Array.isArray(data.users) ? data.users : Object.values(data.users);
+                    } else if (!Array.isArray(data) && typeof data === 'object') {
+                        // New structure: {user_id: {...}, user_id2: {...}}
+                        // Filter out metadata keys
+                        currentData.users = Object.entries(data)
+                            .filter(([key]) => key !== 'count' && key !== 'updatedAt')
+                            .map(([key, user]) => ({ ...user, _id: key, id: key }));
+                    } else {
+                        currentData.users = [];
+                    }
+                } else {
+                    currentData.users = [];
+                }
+                renderUsers();
+            } catch (error) {
+                console.error('Error loading users:', error);
+                currentData.users = [];
+                renderUsers();
+            }
+        }
+
+        async function loadMatches() {
+            try {
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/matches.json`);
+                const data = await response.json();
+                if (data && data.matches) {
+                    currentData.matches = Array.isArray(data.matches) ? data.matches : Object.values(data.matches);
+                } else {
+                    currentData.matches = [];
+                }
+                renderMatches();
+            } catch (error) {
+                console.error('Error loading matches:', error);
+                currentData.matches = [];
+                renderMatches();
+            }
+        }
+
+        // Rendering with sorting/filtering/search
+        function buildHeader(tableKey) {
+            const headerRow = document.getElementById(`${tableKey}-headers`);
+            const cols = TABLE_CONFIG[tableKey].columns;
+            headerRow.innerHTML = cols.map(col => `
+                <th class="relative px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider select-none" data-col="${col.id}">
+                    <div class="flex items-center gap-1 cursor-pointer" onclick="toggleSort('${tableKey}','${col.id}', event)">
+                        <span>${col.label}</span>
+                        <i class="fas fa-sort text-gray-400 text-xs" id="${tableKey}-sort-${col.id}"></i>
+                    </div>
+                    <span class="resize-handle" onmousedown="startResize(event)"></span>
+                </th>
+            `).join('');
+        }
+
+        function buildFilterRow(tableKey) {
+            const filterRow = document.getElementById(`${tableKey}-filters`);
+            const cols = TABLE_CONFIG[tableKey].columns;
+            filterRow.innerHTML = cols.map(col => `
+                <td class="px-4 py-2 bg-white" data-col="${col.id}">
+                    ${col.searchable ? `<input data-table="${tableKey}" data-col="${col.id}" class="w-full border border-gray-200 rounded-md px-2 py-1 text-xs" placeholder="Filter ${col.label}">` : ''}
+                </td>
+            `).join('');
+            filterRow.querySelectorAll('input').forEach(input => {
+                input.addEventListener('input', debounce(() => {
+                    const key = input.dataset.table;
+                    const col = input.dataset.col;
+                    tableState[key].columnFilters[col] = input.value.toLowerCase();
+                    renderTable(key);
+                }, 200));
+            });
+        }
+
+        function buildColumnMenu(tableKey) {
+            const menu = document.getElementById(`column-menu-${tableKey}`);
+            const cols = TABLE_CONFIG[tableKey].columns;
+            menu.innerHTML = cols.map(col => `
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" checked data-table="${tableKey}" data-col="${col.id}" class="column-toggle">
+                    <span>${col.label}</span>
+                </label>
+            `).join('');
+            menu.querySelectorAll('.column-toggle').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    const table = cb.dataset.table;
+                    const col = cb.dataset.col;
+                    if (cb.checked) {
+                        tableState[table].visible.add(col);
+                    } else {
+                        tableState[table].visible.delete(col);
+                    }
+                    updateColumnVisibility(table);
+                    renderTable(table);
+                });
+            });
+        }
+
+        function toggleSort(tableKey, colId, event) {
+            const existing = tableState[tableKey].sort.find(s => s.id === colId);
+            if (event.shiftKey) {
+                if (existing) {
+                    existing.dir = existing.dir === 'asc' ? 'desc' : existing.dir === 'desc' ? null : 'asc';
+                    if (!existing.dir) tableState[tableKey].sort = tableState[tableKey].sort.filter(s => s.id !== colId);
+                } else {
+                    tableState[tableKey].sort.push({ id: colId, dir: 'asc' });
+                }
+            } else {
+                if (existing) {
+                    existing.dir = existing.dir === 'asc' ? 'desc' : existing.dir === 'desc' ? null : 'asc';
+                    tableState[tableKey].sort = existing.dir ? [existing] : [];
+                } else {
+                    tableState[tableKey].sort = [{ id: colId, dir: 'asc' }];
+                }
+            }
+            updateSortIcons(tableKey);
+            renderTable(tableKey);
+        }
+
+        function updateSortIcons(tableKey) {
+            TABLE_CONFIG[tableKey].columns.forEach(col => {
+                const icon = document.getElementById(`${tableKey}-sort-${col.id}`);
+                const sortItem = tableState[tableKey].sort.find(s => s.id === col.id);
+                icon.classList.remove('fa-sort-up','fa-sort-down');
+                icon.classList.add('fa-sort');
+                icon.classList.remove('text-indigo-600');
+                if (sortItem) {
+                    icon.classList.remove('fa-sort');
+                    icon.classList.add(sortItem.dir === 'asc' ? 'fa-sort-up' : 'fa-sort-down', 'text-indigo-600');
+                }
+            });
+        }
+
+        function renderMessages() {
+            renderTable('messages');
+        }
+        function renderEvents() { renderTable('events'); }
+        function renderUsers() { renderTable('users'); }
+        function renderMatches() { renderTable('matches'); }
+
+        function renderTable(tableKey) {
+            const tbody = document.getElementById(`${tableKey}-tbody`);
+            const data = applyFiltersAndSort(tableKey);
+            const visibleCols = tableState[tableKey].visible;
+            const cols = TABLE_CONFIG[tableKey].columns;
+            updateColumnVisibility(tableKey);
+
+            if (!data.length) {
+                tbody.innerHTML = `<tr><td colspan="${cols.length}" class="px-6 py-8 text-center text-gray-500">No rows found</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = data.map(row => {
+                return `<tr class="hover:bg-gray-50">` + cols.map(col => {
+                    const hidden = visibleCols.has(col.id) ? '' : 'hidden';
+                    const raw = col.accessor(row);
+                    const content = formatCell(tableKey, col.id, raw, row);
+                    return `<td class="px-4 py-3 text-sm text-gray-900 align-top ${hidden}" data-col="${col.id}">${content}</td>`;
+                }).join('') + `</tr>`;
+            }).join('');
+        }
+
+        function formatCell(tableKey, colId, value, row) {
+            const searchTerm = (tableState[tableKey].search || '').toLowerCase();
+            const highlightIfNeeded = (text) => highlight(text, searchTerm);
+            if (tableKey === 'messages') {
+                if (colId === 'message_text') return `<div class="max-w-lg whitespace-normal break-words">${highlightIfNeeded(escapeHtml(value || 'N/A'))}</div>`;
+                if (colId === 'user') return `<div>${highlightIfNeeded(escapeHtml(value))}<div class="text-xs text-gray-500">${escapeHtml(row.user_email || '')}</div></div>`;
+                if (colId === 'event') return highlightIfNeeded(escapeHtml(value));
+                if (colId === 'eventDate') return `<span>${value}</span>`;
+                if (colId === 'campaign') {
+                    const campaign = value || 'N/A';
+                    const campaignClass = campaign === 'fill-the-table' ? 'text-blue-600' : 
+                                         campaign === 'return-to-table' ? 'text-purple-600' : 
+                                         campaign === 'seat-newcomers' ? 'text-green-600' : 'text-gray-600';
+                    return `<span class="px-2 py-1 text-xs font-medium rounded-full ${campaignClass} bg-gray-100">${escapeHtml(campaign)}</span>`;
+                }
+                if (colId === 'confidence') {
+                    const cls = value >= 80 ? 'confidence-high' : value >= 60 ? 'confidence-medium' : 'confidence-low';
+                    return `<span class="${cls}">${value}%</span>`;
+                }
+                if (colId === 'status') return `<span class="px-2 py-1 text-xs font-medium rounded-full status-${value}">${value}</span>`;
+                if (colId === 'actions') {
+                    const status = row.status || 'pending';
+                    const messageId = row._id || row.user_phone || row.user_email || `msg_${Date.now()}`;
+                    let actions = '';
+                    
+                    if (status === 'pending') {
+                        // Review button
+                        actions += `<button class="px-3 py-1 text-sm text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded transition-colors mr-2" onclick="openReviewModal('${messageId}')" title="Review message details">
+                            <i class="fas fa-eye mr-1"></i>Review
+                        </button>`;
+                        // Approve button
+                        actions += `<button class="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors" onclick="approveMessageDirect('${messageId}', event)" title="Approve message">
+                            <i class="fas fa-check mr-1"></i>Approve
+                        </button>`;
+                    } else if (status === 'approved' && !row.sentAt) {
+                        // Send button for approved messages
+                        actions += `<button class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors" onclick="sendMessage('${messageId}', event)" title="Send SMS via notification API">
+                            <i class="fas fa-paper-plane mr-1"></i>Send
+                        </button>`;
+                    } else if (status === 'sent') {
+                        actions += `<span class="text-blue-600 text-sm"><i class="fas fa-check-circle mr-1"></i>Sent</span>`;
+                    } else if (status === 'denied') {
+                        actions += `<span class="text-red-600 text-sm"><i class="fas fa-times-circle mr-1"></i>Denied</span>`;
+                    }
+                    return actions;
+                }
+            }
+            if (tableKey === 'events') {
+                if (colId === 'startDate') return `<span class="text-sm text-gray-600">${value}</span>`;
+                return highlightIfNeeded(escapeHtml(String(value)));
+            }
+            if (tableKey === 'users') {
+                return highlightIfNeeded(escapeHtml(String(value)));
+            }
+            if (tableKey === 'matches') {
+                if (colId === 'confidence') {
+                    const cls = value >= 80 ? 'confidence-high' : value >= 60 ? 'confidence-medium' : 'confidence-low';
+                    return `<span class="${cls}">${value}%</span>`;
+                }
+                if (colId === 'reasoning') {
+                    const text = value || '';
+                    return `<div class="max-w-md">${highlightIfNeeded(escapeHtml(text.substring(0, 140)))}${text.length > 140 ? '...' : ''}</div>`;
+                }
+                return highlightIfNeeded(escapeHtml(String(value)));
+            }
+            return escapeHtml(String(value));
+        }
+
+        function applyFiltersAndSort(tableKey) {
+            const search = (document.getElementById(`search-${tableKey}`)?.value || '').toLowerCase();
+            tableState[tableKey].search = search;
+            const columnFilters = tableState[tableKey].columnFilters;
+            const sorters = tableState[tableKey].sort;
+            let data = [...currentData[tableKey === 'messages' ? 'messages' : tableKey]];
+
+            if (tableKey === 'messages') {
+                const statusFilter = document.getElementById('filter-status')?.value || 'all';
+                if (statusFilter !== 'all') {
+                    if (statusFilter.startsWith('campaign:')) {
+                        const campaignValue = statusFilter.replace('campaign:', '').toLowerCase();
+                        data = data.filter(msg => (msg.campaign || '').toLowerCase() === campaignValue);
+                    } else {
+                        data = data.filter(msg => (msg.status || 'pending').toLowerCase() === statusFilter.toLowerCase());
+                    }
+                }
+            }
+
+            // Search filter
+            if (search) {
+                data = data.filter(row => TABLE_CONFIG[tableKey].columns.some(col => col.searchable && (col.accessor(row) || '').toString().toLowerCase().includes(search)));
+            }
+            // Column filters
+            Object.entries(columnFilters).forEach(([colId, term]) => {
+                if (!term) return;
+                data = data.filter(row => {
+                    const col = TABLE_CONFIG[tableKey].columns.find(c => c.id === colId);
+                    return (col?.accessor(row) || '').toString().toLowerCase().includes(term);
+                });
+            });
+            // Sort
+            if (sorters.length) {
+                data.sort((a, b) => {
+                    for (const sorter of sorters) {
+                        const col = TABLE_CONFIG[tableKey].columns.find(c => c.id === sorter.id);
+                        const va = col ? col.accessor(a) : '';
+                        const vb = col ? col.accessor(b) : '';
+                        if (va < vb) return sorter.dir === 'asc' ? -1 : 1;
+                        if (va > vb) return sorter.dir === 'asc' ? 1 : -1;
+                    }
+                    return 0;
+                });
+            }
+            return data;
+        }
+
+        // Metrics and charts
+        function updateMetrics() {
+            const range = document.getElementById('overview-range')?.value || 'all';
+            const channel = document.getElementById('overview-channel')?.value || 'all';
+            const filteredMessages = filterByRangeAndChannel(currentData.messages, range, channel);
+            const totalGenerated = filteredMessages.length;
+            const approved = filteredMessages.filter(m => (m.status || 'pending') === 'approved' || (m.status || 'pending') === 'sent').length;
+            const approvalRate = totalGenerated ? Math.round((approved / totalGenerated) * 100) : 0;
+            const eventsAssessed = new Set(filteredMessages.map(m => m.event_id || m.eventId).filter(Boolean)).size;
+            const usersReached = new Set(filteredMessages.filter(m => (m.status || 'pending') === 'sent').map(m => m.user_email || m.userId).filter(Boolean)).size;
+
+            document.getElementById('metric-messages-generated').textContent = totalGenerated;
+            document.getElementById('metric-approval-rate').textContent = `${approvalRate}%`;
+            document.getElementById('metric-events-assessed').textContent = eventsAssessed;
+            document.getElementById('metric-users-reached').textContent = usersReached;
+
+            setTrendText('messages', filteredMessages.length, currentData.messages.length);
+            setTrendText('approval', approvalRate, computeBaselineApproval());
+            setTrendText('events', eventsAssessed, currentData.events.length || 1);
+            setTrendText('users', usersReached, currentData.users.length || 1);
+        }
+
+        function filterByRangeAndChannel(messages, range, channel) {
+            const now = Date.now();
+            const msRange = range === '7d' ? 7*24*60*60*1000 : range === '30d' ? 30*24*60*60*1000 : null;
+            return messages.filter(m => {
+                const ts = m.created_at || m.createdAt || m.sentAt || m.reviewedAt;
+                const inRange = msRange ? (ts ? (now - new Date(ts).getTime() <= msRange) : true) : true;
+                const matchesChannel = channel === 'all' ? true : (m.channel || '').toLowerCase() === channel;
+                return inRange && matchesChannel;
+            });
+        }
+
+        function computeBaselineApproval() {
+            const msgs = currentData.messages;
+            const total = msgs.length || 1;
+            const approved = msgs.filter(m => (m.status || 'pending') === 'approved' || (m.status || 'pending') === 'sent').length;
+            return Math.round((approved / total) * 100);
+        }
+
+        function setTrendText(key, value, baseline) {
+            const el = document.getElementById(`metric-trend-${key}`);
+            const delta = baseline ? Math.round(((value - baseline) / baseline) * 100) : 0;
+            el.textContent = isFinite(delta) ? `${delta >= 0 ? '+' : ''}${delta}% vs base` : '—';
+        }
+
+        function drawTrendCharts() {
+            drawSparkline('chart-messages', buildTrendSeries(currentData.messages, m => m.created_at || m.createdAt || m.reviewedAt));
+            drawSparkline('chart-approval', buildTrendSeries(currentData.messages, m => m.reviewedAt, m => (m.status === 'approved' || m.status === 'sent') ? 1 : 0));
+            drawSparkline('chart-events', buildTrendSeries(currentData.events, e => e.startDate));
+            drawSparkline('chart-users', buildTrendSeries(currentData.users, u => u.created_at || u.createdAt));
+        }
+
+        function buildTrendSeries(items, dateGetter, valueGetter) {
+            const now = Date.now();
+            const buckets = Array.from({length: 7}, (_, i) => {
+                const start = new Date(now - (6 - i) * 24*60*60*1000);
+                return { label: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), value: 0 };
+            });
+            items.forEach(item => {
+                const ts = dateGetter(item);
+                if (!ts) return;
+                const diffDays = Math.floor((now - new Date(ts).getTime()) / (24*60*60*1000));
+                const bucketIdx = 6 - diffDays;
+                if (bucketIdx >=0 && bucketIdx < 7) {
+                    buckets[bucketIdx].value += valueGetter ? valueGetter(item) : 1;
+                }
+            });
+            return buckets;
+        }
+
+        function drawSparkline(canvasId, series) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || !canvas.getContext) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = 64;
+            ctx.clearRect(0, 0, w, h);
+            const max = Math.max(...series.map(p => p.value), 1);
+            ctx.strokeStyle = '#6366f1';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            series.forEach((p, i) => {
+                const x = (i/(series.length-1)) * w;
+                const y = h - (p.value / max) * (h - 10) - 5;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(99,102,241,0.15)';
+            ctx.beginPath();
+            series.forEach((p, i) => {
+                const x = (i/(series.length-1)) * w;
+                const y = h - (p.value / max) * (h - 10) - 5;
+                if (i === 0) ctx.moveTo(x, h); ctx.lineTo(x, y);
+                if (i === series.length -1) ctx.lineTo(x, h);
+            });
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function updateLastUpdated() {
+            document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+        }
+
+        // Approval Modal
+        function openReviewModal(messageId) {
+            try {
+                // Find message in currentData.messages
+                const message = currentData.messages.find(m => 
+                    m._id === messageId || 
+                    m.user_phone === messageId || 
+                    m.user_email === messageId
+                );
+                
+                if (!message) {
+                    alert('Message not found. Please refresh the page.');
+                    return;
+                }
+                
+                // Validate required fields
+                if (!message.message_text) {
+                    alert('Message text is missing. Cannot review.');
+                    return;
+                }
+                
+                // Set current message data
+                currentMessageId = messageId;
+                window.currentMessageData = message;
+                
+                // Populate modal fields
+                document.getElementById('modal-message-text').textContent = message.message_text || 'N/A';
+                document.getElementById('modal-user-info').innerHTML = `
+                    <strong>${escapeHtml(message.user_name || 'N/A')}</strong><br>
+                    ${escapeHtml(message.user_email || '')}<br>
+                    ${escapeHtml(message.user_phone || '')}
+                `;
+                document.getElementById('modal-event-info').textContent = message.event_name || 'N/A';
+                
+                const confidence = message.similarity_score || message.confidence_percentage || 0;
+                const confidenceClass = confidence >= 80 ? 'confidence-high' : confidence >= 60 ? 'confidence-medium' : 'confidence-low';
+                document.getElementById('modal-confidence').innerHTML = `<span class="${confidenceClass}">${confidence}%</span>`;
+                document.getElementById('modal-reasoning').textContent = message.reasoning || 'N/A';
+                
+                // Show/hide buttons based on status
+                const status = message.status || 'pending';
+                if (status === 'pending') {
+                    document.getElementById('approve-btn').classList.remove('hidden');
+                    document.getElementById('deny-btn').classList.remove('hidden');
+                    document.getElementById('denial-reason-section').classList.add('hidden');
+                    // Reset deny button
+                    const denyBtn = document.getElementById('deny-btn');
+                    denyBtn.textContent = 'Deny';
+                    denyBtn.onclick = function() {
+                        const reasonSection = document.getElementById('denial-reason-section');
+                        if (reasonSection.classList.contains('hidden')) {
+                            reasonSection.classList.remove('hidden');
+                            document.getElementById('approve-btn').classList.add('hidden');
+                            denyBtn.textContent = 'Confirm Denial';
+                        } else {
+                            denyMessage();
+                        }
+                    };
+                } else {
+                    document.getElementById('approve-btn').classList.add('hidden');
+                    document.getElementById('deny-btn').classList.add('hidden');
+                }
+                
+                // Show modal
+                document.getElementById('approval-modal').classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Error opening review modal:', error);
+                alert('Error opening review modal. Please try again or refresh the page.');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('approval-modal').classList.add('hidden');
+            currentMessageId = null;
+            window.currentMessageData = null;
+            document.getElementById('denial-reason').value = '';
+            document.getElementById('denial-comment').value = '';
+            document.getElementById('denial-reason-section').classList.add('hidden');
+            const denyBtn = document.getElementById('deny-btn');
+            denyBtn.textContent = 'Deny';
+            denyBtn.onclick = null;
+        }
+
+        async function approveMessage() {
+            if (!currentMessageId || !window.currentMessageData) return;
+            try {
+                const message = window.currentMessageData;
+                const updateData = { status: 'approved', reviewedAt: new Date().toISOString(), reviewerId: 'dashboard_user' };
+                const messagesResponse = await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`);
+                const messagesData = await messagesResponse.json();
+                if (messagesData && messagesData.messages) {
+                    const idx = messagesData.messages.findIndex(m =>
+                        (m.user_phone && message.user_phone && m.user_phone === message.user_phone) ||
+                        (m.user_email && message.user_email && m.user_email === message.user_email) ||
+                        (m.message_text && message.message_text && m.message_text === message.message_text)
+                    );
+                    if (idx !== -1) {
+                        messagesData.messages[idx] = { ...messagesData.messages[idx], ...updateData };
+                        await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(messagesData)
+                        });
+                        await loadMessages();
+                        closeModal();
+                        alert('Message approved successfully!');
+                    } else {
+                        alert('Message not found in Firebase. Please refresh and try again.');
+                    }
+                } else {
+                    alert('Unable to read messages from Firebase. Please refresh and try again.');
+                }
+            } catch (error) {
+                console.error('Error approving message:', error);
+                alert('Error approving message. Please try again.');
+            }
+        }
+
+        async function denyMessage() {
+            if (!currentMessageId || !window.currentMessageData) return;
+            const reason = document.getElementById('denial-reason').value;
+            const comment = document.getElementById('denial-comment').value;
+            if (!reason) { alert('Please select a denial reason'); return; }
+            try {
+                const message = window.currentMessageData;
+                const updateData = { status: 'denied', reviewedAt: new Date().toISOString(), reviewerId: 'dashboard_user', decisionReason: reason, reviewerComment: comment || null };
+                const messagesResponse = await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`);
+                const messagesData = await messagesResponse.json();
+                if (messagesData && messagesData.messages) {
+                    const idx = messagesData.messages.findIndex(m =>
+                        (m.user_phone && message.user_phone && m.user_phone === message.user_phone) ||
+                        (m.user_email && message.user_email && m.user_email === message.user_email) ||
+                        (m.message_text && message.message_text && m.message_text === message.message_text)
+                    );
+                    if (idx !== -1) {
+                        messagesData.messages[idx] = { ...messagesData.messages[idx], ...updateData };
+                        await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(messagesData)
+                        });
+                        await loadMessages();
+                        closeModal();
+                        alert('Message denied successfully!');
+                    } else {
+                        alert('Message not found in Firebase. Please refresh and try again.');
+                    }
+                } else {
+                    alert('Unable to read messages from Firebase. Please refresh and try again.');
+                }
+            } catch (error) {
+                console.error('Error denying message:', error);
+                alert('Error denying message. Please try again.');
+            }
+        }
+
+        // Direct Approve Function
+        async function approveMessageDirect(messageId, event) {
+            // Find message
+            const message = currentData.messages.find(m => 
+                m._id === messageId || 
+                m.user_phone === messageId || 
+                m.user_email === messageId
+            );
+            
+            if (!message) {
+                alert('Message not found. Please refresh the page.');
+                return;
+            }
+            
+            // Confirm approval
+            if (!confirm(`Approve this message for ${message.user_name || 'user'}?`)) {
+                return;
+            }
+            
+            try {
+                // Disable button during request
+                const approveBtn = event ? (event.target.closest('button') || event.target) : null;
+                let originalHTML = '';
+                if (approveBtn) {
+                    originalHTML = approveBtn.innerHTML;
+                    approveBtn.disabled = true;
+                    approveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Approving...';
+                }
+                
+                // Update Firebase
+                const updateData = {
+                    status: 'approved',
+                    reviewedAt: new Date().toISOString(),
+                    reviewerId: 'dashboard_user'
+                };
+                
+                // Get current messages from Firebase
+                const messagesResponse = await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`);
+                const messagesData = await messagesResponse.json();
+                
+                if (messagesData && messagesData.messages) {
+                    // Find message in array
+                    const idx = messagesData.messages.findIndex(m =>
+                        (m.user_phone && message.user_phone && m.user_phone === message.user_phone) ||
+                        (m.user_email && message.user_email && m.user_email === message.user_email) ||
+                        (m.message_text && message.message_text && m.message_text === message.message_text)
+                    );
+                    
+                    if (idx !== -1) {
+                        // Update message
+                        messagesData.messages[idx] = { 
+                            ...messagesData.messages[idx], 
+                            ...updateData 
+                        };
+                        messagesData.updatedAt = new Date().toISOString();
+                        
+                        // Save back to Firebase
+                        await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(messagesData)
+                        });
+                        
+                        // Refresh data
+                        await loadMessages();
+                        updateMetrics();
+                        
+                        // Show success
+                        showNotification('Message approved successfully!', 'success');
+                    } else {
+                        alert('Message not found in Firebase. Please refresh and try again.');
+                    }
+                } else {
+                    alert('Unable to read messages from Firebase. Please refresh and try again.');
+                }
+            } catch (error) {
+                console.error('Error approving message:', error);
+                alert('Error approving message. Please try again.');
+            }
+        }
+
+        // Send Message Function
+        async function sendMessage(messageId, event) {
+            // Find message
+            const message = currentData.messages.find(m => 
+                m._id === messageId || 
+                m.user_phone === messageId || 
+                m.user_email === messageId
+            );
+            
+            if (!message) {
+                alert('Message not found. Please refresh the page.');
+                return;
+            }
+            
+            // Validate message is approved
+            if (message.status !== 'approved') {
+                alert('Only approved messages can be sent.');
+                return;
+            }
+            
+            // Validate required fields
+            if (!message.user_id && !message.userId) {
+                alert('User ID is missing. Cannot send message.');
+                return;
+            }
+            
+            if (!message.message_text) {
+                alert('Message text is missing. Cannot send message.');
+                return;
+            }
+            
+            // Confirm send
+            if (!confirm(`Send SMS to ${message.user_name || 'user'}?\n\nMessage: ${message.message_text.substring(0, 100)}...`)) {
+                return;
+            }
+            
+            try {
+                // Disable button during request
+                const sendBtn = event ? (event.target.closest('button') || event.target) : null;
+                let originalHTML = '';
+                if (sendBtn) {
+                    originalHTML = sendBtn.innerHTML;
+                    sendBtn.disabled = true;
+                    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Sending...';
+                }
+                
+                // Prepare notification API payload
+                const userId = message.user_id || message.userId;
+                const eventId = message.event_id || message.eventId || null;
+                
+                const payload = {
+                    userId: userId,
+                    type: 'chat',
+                    event: 'NEW_MESSAGE',
+                    configType: 'communication',
+                    targetEntityType: 'user',
+                    channels: ['sms'],
+                    data: {
+                        detail: 'notification detail',
+                        senderImage: SENDER_IMAGE_URL,
+                        userId: userId,
+                        eventId: eventId || '64ed0c0e87a7e6765a212c18',
+                        sender: {
+                            id: LEO_USER_ID
+                        },
+                        timestamp: new Date().toISOString()
+                    },
+                    text: message.message_text,
+                    createdBy: LEO_USER_ID
+                };
+                
+                // Call notification API
+                const response = await fetch(NOTIFICATION_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${NOTIFICATION_AUTH_TOKEN}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API Error: ${response.status} - ${errorText}`);
+                }
+                
+                const result = await response.json();
+                console.log('Notification API response:', result);
+                
+                // Update Firebase message status to "sent"
+                const updateData = {
+                    status: 'sent',
+                    sentAt: new Date().toISOString(),
+                    notificationId: result.id || null
+                };
+                
+                // Get current messages from Firebase
+                const messagesResponse = await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`);
+                const messagesData = await messagesResponse.json();
+                
+                if (messagesData && messagesData.messages) {
+                    // Find message in array
+                    const idx = messagesData.messages.findIndex(m =>
+                        (m.user_phone && message.user_phone && m.user_phone === message.user_phone) ||
+                        (m.user_email && message.user_email && m.user_email === message.user_email) ||
+                        (m.message_text && message.message_text && m.message_text === message.message_text)
+                    );
+                    
+                    if (idx !== -1) {
+                        // Update message
+                        messagesData.messages[idx] = { 
+                            ...messagesData.messages[idx], 
+                            ...updateData 
+                        };
+                        messagesData.updatedAt = new Date().toISOString();
+                        
+                        // Save back to Firebase
+                        await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(messagesData)
+                        });
+                        
+                        // Refresh data
+                        await loadMessages();
+                        updateMetrics();
+                        
+                        // Show success
+                        showNotification(`Message sent successfully! Notification ID: ${result.id || 'N/A'}`, 'success');
+                    } else {
+                        console.warn('Message not found in Firebase for status update, but SMS was sent.');
+                        showNotification('SMS sent successfully, but could not update Firebase status. Please refresh the page.', 'error');
+                    }
+                } else {
+                    console.warn('Could not read messages from Firebase for status update, but SMS was sent.');
+                    showNotification('SMS sent successfully, but could not update Firebase status. Please refresh the page.', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showNotification(`Error sending message: ${error.message}`, 'error');
+            } finally {
+                // Button will be replaced by refresh, but restore just in case
+                if (sendBtn && originalHTML) {
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = originalHTML;
+                }
+            }
+        }
+
+        // Notification System
+        function showNotification(message, type = 'info') {
+            // Remove existing notifications
+            const existing = document.querySelector('.export-notification');
+            if (existing) existing.remove();
+            
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `export-notification fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 ${
+                type === 'success' ? 'bg-green-100 text-green-800 border border-green-300' :
+                type === 'error' ? 'bg-red-100 text-red-800 border border-red-300' :
+                'bg-blue-100 text-blue-800 border border-blue-300'
+            }`;
+            notification.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transition = 'opacity 0.3s';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Export Functions
+        function exportTable(tableKey, format) {
+            try {
+                // Get filtered/sorted data
+                const data = applyFiltersAndSort(tableKey);
+                
+                if (!data || data.length === 0) {
+                    showNotification('No data to export. Please check your filters.', 'error');
+                    return;
+                }
+                
+                // Get visible columns
+                const visibleCols = Array.from(tableState[tableKey].visible);
+                const columns = TABLE_CONFIG[tableKey].columns.filter(col => 
+                    visibleCols.includes(col.id) && col.id !== 'actions'
+                );
+                
+                // Generate content based on format
+                let content;
+                let filename;
+                let mimeType;
+                
+                if (format === 'csv') {
+                    content = generateCSV(data, columns, tableKey);
+                    filename = `${tableKey}_${new Date().toISOString().split('T')[0]}.csv`;
+                    mimeType = 'text/csv;charset=utf-8;';
+                } else if (format === 'markdown') {
+                    content = generateMarkdown(data, columns, tableKey);
+                    filename = `${tableKey}_${new Date().toISOString().split('T')[0]}.md`;
+                    mimeType = 'text/markdown;charset=utf-8;';
+                } else {
+                    showNotification('Invalid format', 'error');
+                    return;
+                }
+                
+                // Create download
+                const blob = new Blob([content], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                // Show success message
+                showNotification(`Exported ${data.length} rows as ${format.toUpperCase()}`, 'success');
+                
+            } catch (error) {
+                console.error('Error exporting table:', error);
+                showNotification('Error exporting data. Please try again.', 'error');
+            }
+        }
+
+        function generateCSV(data, columns, tableKey) {
+            // CSV escaping function
+            const escapeCSV = (value) => {
+                if (value === null || value === undefined) return '';
+                const str = String(value);
+                // If contains comma, quote, or newline, wrap in quotes and escape quotes
+                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                    return `"${str.replace(/"/g, '""')}"`;
+                }
+                return str;
+            };
+            
+            // Generate header row
+            const headers = columns.map(col => escapeCSV(col.label));
+            const headerRow = headers.join(',');
+            
+            // Generate data rows
+            const rows = data.map(row => {
+                const cells = columns.map(col => {
+                    let value = col.accessor(row);
+                    
+                    // Handle special formatting
+                    if (tableKey === 'messages' && col.id === 'user') {
+                        // Include secondary info (email) if available
+                        const secondary = col.secondary ? col.secondary(row) : '';
+                        value = secondary ? `${value} (${secondary})` : value;
+                    }
+                    
+                    // Format dates
+                    if (value instanceof Date) {
+                        value = value.toLocaleString();
+                    }
+                    
+                    // Handle arrays
+                    if (Array.isArray(value)) {
+                        value = value.join('; ');
+                    }
+                    
+                    return escapeCSV(value);
+                });
+                return cells.join(',');
+            });
+            
+            // Combine header and rows
+            return [headerRow, ...rows].join('\n');
+        }
+
+        function generateMarkdown(data, columns, tableKey) {
+            // Markdown escaping function
+            const escapeMarkdown = (value) => {
+                if (value === null || value === undefined) return '';
+                const str = String(value);
+                // Escape pipes and newlines
+                return str.replace(/\|/g, '\\|').replace(/\n/g, ' ');
+            };
+            
+            // Table title
+            const title = tableKey.charAt(0).toUpperCase() + tableKey.slice(1);
+            let markdown = `# ${title} Export\n`;
+            markdown += `*Exported on: ${new Date().toLocaleString()}*\n`;
+            markdown += `*Total rows: ${data.length}*\n\n`;
+            
+            // Generate header row
+            const headers = columns.map(col => escapeMarkdown(col.label));
+            const headerRow = '| ' + headers.join(' | ') + ' |';
+            
+            // Generate separator row
+            const separator = '| ' + headers.map(() => '---').join(' | ') + ' |';
+            
+            // Generate data rows
+            const rows = data.map(row => {
+                const cells = columns.map(col => {
+                    let value = col.accessor(row);
+                    
+                    // Handle special formatting
+                    if (tableKey === 'messages' && col.id === 'user') {
+                        const secondary = col.secondary ? col.secondary(row) : '';
+                        value = secondary ? `${value} (${secondary})` : value;
+                    }
+                    
+                    // Format dates
+                    if (value instanceof Date) {
+                        value = value.toLocaleString();
+                    }
+                    
+                    // Handle arrays
+                    if (Array.isArray(value)) {
+                        value = value.join(', ');
+                    }
+                    
+                    return escapeMarkdown(value);
+                });
+                return '| ' + cells.join(' | ') + ' |';
+            });
+            
+            // Combine all parts
+            return markdown + headerRow + '\n' + separator + '\n' + rows.join('\n');
+        }
+
+        async function copyTable(tableKey, format) {
+            try {
+                // Get filtered/sorted data
+                const data = applyFiltersAndSort(tableKey);
+                
+                if (!data || data.length === 0) {
+                    showNotification('No data to copy. Please check your filters.', 'error');
+                    return;
+                }
+                
+                // Get visible columns
+                const visibleCols = Array.from(tableState[tableKey].visible);
+                const columns = TABLE_CONFIG[tableKey].columns.filter(col => 
+                    visibleCols.includes(col.id) && col.id !== 'actions'
+                );
+                
+                // Generate content
+                let content;
+                if (format === 'csv') {
+                    content = generateCSV(data, columns, tableKey);
+                } else if (format === 'markdown') {
+                    content = generateMarkdown(data, columns, tableKey);
+                } else {
+                    showNotification('Invalid format', 'error');
+                    return;
+                }
+                
+                // Copy to clipboard
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(content);
+                    showNotification(`Copied ${data.length} rows (${format.toUpperCase()}) to clipboard`, 'success');
+                } else {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = content;
+                    textArea.style.position = 'fixed';
+                    textArea.style.opacity = '0';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        showNotification(`Copied ${data.length} rows (${format.toUpperCase()}) to clipboard`, 'success');
+                    } catch (err) {
+                        showNotification('Failed to copy. Please try selecting and copying manually.', 'error');
+                    }
+                    document.body.removeChild(textArea);
+                }
+                
+            } catch (error) {
+                console.error('Error copying table:', error);
+                showNotification('Error copying data. Please try again.', 'error');
+            }
+        }
+
+        function refreshData() { loadAllData(); }
+
+        // Helpers
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text ?? '';
+            return div.innerHTML;
+        }
+        function getEventDate(msg) {
+            let eventDate = 'N/A';
+            if (msg.event && msg.event.startDate) eventDate = new Date(msg.event.startDate).toLocaleString();
+            else if (msg.event_id) {
+                const event = currentData.events.find(e => e._id === msg.event_id || e.id === msg.event_id);
+                if (event?.startDate) eventDate = new Date(event.startDate).toLocaleString();
+            }
+            return eventDate;
+        }
+        function debounce(fn, delay) {
+            let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+        }
+        function highlight(text, term) {
+            if (!term) return text;
+            const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')})`, 'gi');
+            return text.replace(regex, '<mark>$1</mark>');
+        }
+        function startResize(e) {
+            const th = e.target.parentElement;
+            const startX = e.pageX;
+            const startWidth = th.offsetWidth;
+            function onMove(ev) { th.style.width = `${startWidth + (ev.pageX - startX)}px`; }
+            function onUp() { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+        function updateColumnVisibility(tableKey) {
+            const visible = tableState[tableKey].visible;
+            document.querySelectorAll(`#${tableKey}-headers th`).forEach(th => {
+                const col = th.dataset.col;
+                th.classList.toggle('hidden', !visible.has(col));
+            });
+            document.querySelectorAll(`#${tableKey}-filters td`).forEach(td => {
+                const col = td.dataset.col;
+                td.classList.toggle('hidden', !visible.has(col));
+            });
+            document.querySelectorAll(`#table-${tableKey} tbody td`).forEach(td => {
+                const col = td.dataset.col;
+                if (col) td.classList.toggle('hidden', !visible.has(col));
+            });
+        }
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages Review · Leo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #FAFAFA; 
+        }
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 4px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-width: 160px;
+            z-index: 50;
+        }
+        .dropdown-item {
+            display: block;
+            width: 100%;
+            padding: 8px 16px;
+            text-align: left;
+            color: #374151;
+            transition: background-color 0.2s;
+        }
+        .dropdown-item:hover {
+            background-color: #f3f4f6;
+        }
+        .dropdown-item:first-child {
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+        .dropdown-item:last-child {
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+        .toast-success { background-color: #10B981; color: white; }
+        .toast-error { background-color: #EF4444; color: white; }
+        .toast-info { background-color: #3B82F6; color: white; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 px-4 md:px-8 py-4 sticky top-0 z-30 flex items-center justify-center relative">
+        <a href="../dashboard/dashboard.html" class="absolute left-4 md:left-8 text-gray-500 hover:text-gray-700 transition-colors">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <div class="text-center">
+            <h1 class="text-2xl font-bold text-gray-900">Leo Messages</h1>
+            <p class="text-sm text-gray-600">human in the loop review</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="p-4 md:p-8 max-w-7xl mx-auto">
+        <!-- Filters -->
+        <div class="bg-white rounded-lg border border-gray-200 p-4 mb-6 shadow-sm">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex items-center gap-4 flex-1">
+                    <div class="relative flex-1 max-w-md">
+                        <input 
+                            id="search-input" 
+                            type="text" 
+                            placeholder="Search messages, users, events..." 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        >
+                        <i class="fas fa-search text-gray-400 absolute right-3 top-2.5 text-sm"></i>
+                    </div>
+                    <select id="filter-status" class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        <option value="all">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="denied">Denied</option>
+                        <option value="sent">Sent</option>
+                    </select>
+                    <select id="filter-campaign" class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        <option value="all">All Campaigns</option>
+                        <option value="seat-newcomers">seat-newcomers</option>
+                        <option value="fill-the-table">fill-the-table</option>
+                        <option value="return-to-table">return-to-table</option>
+                    </select>
+                </div>
+                <div class="text-sm text-gray-500">
+                    <span id="message-count">0</span> messages
+                </div>
+            </div>
+        </div>
+
+        <!-- Messages Container -->
+        <div id="messages-container" class="space-y-4">
+            <div class="text-center py-12">
+                <i class="fas fa-spinner fa-spin text-gray-400 text-3xl mb-4"></i>
+                <p class="text-gray-600">Loading messages...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Message Modal -->
+    <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <!-- Modal Header -->
+            <div class="p-6 border-b border-gray-200 sticky top-0 bg-white">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold text-gray-900">Message Details</h2>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="p-6 space-y-4">
+                <!-- Message Text (Editable) -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-sm font-medium text-gray-700">Message</label>
+                        <button id="edit-message-btn" onclick="toggleMessageEdit()" class="text-sm text-orange-600 hover:text-orange-700 flex items-center gap-1">
+                            <i class="fas fa-edit"></i>Edit
+                        </button>
+                    </div>
+                    <div id="modal-message-text-display" class="p-4 bg-gray-50 rounded-lg text-lg text-gray-900 leading-relaxed"></div>
+                    <textarea id="modal-message-text-edit" class="hidden w-full p-4 border border-gray-300 rounded-lg text-lg text-gray-900 leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-orange-500" rows="4"></textarea>
+                    <div id="message-edit-actions" class="hidden mt-2 flex gap-2">
+                        <button onclick="saveMessageEdit()" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700 transition-colors">
+                            <i class="fas fa-check mr-1"></i>Save
+                        </button>
+                        <button onclick="cancelMessageEdit()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300 transition-colors">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- User Info -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-2 block">User</label>
+                    <div id="modal-user-info" class="p-3 bg-gray-50 rounded-lg text-sm"></div>
+                </div>
+                
+                <!-- Event Info -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-2 block">Event</label>
+                    <div id="modal-event-info" class="p-3 bg-gray-50 rounded-lg text-sm"></div>
+                </div>
+                
+                <!-- Campaign -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-2 block">Campaign</label>
+                    <div id="modal-campaign" class="p-3 bg-gray-50 rounded-lg"></div>
+                </div>
+                
+                <!-- Additional Details -->
+                <div id="modal-additional" class="space-y-2"></div>
+
+                <!-- Reject Form (Hidden by default) -->
+                <div id="reject-form" class="hidden mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Rejection Reason *</label>
+                    <select id="rejection-reason" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-red-500">
+                        <option value="">Select a reason...</option>
+                        <option value="tone">Tone/voice inappropriate</option>
+                        <option value="generic">Message too generic</option>
+                        <option value="incorrect">Incorrect information</option>
+                        <option value="personalization">Not personalized enough</option>
+                        <option value="compliance">Compliance issue</option>
+                        <option value="other">Other</option>
+                    </select>
+                    
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Additional Comments (optional)</label>
+                    <textarea id="rejection-comment" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Provide additional feedback..."></textarea>
+                    
+                    <div class="flex items-center justify-end gap-2">
+                        <button onclick="cancelReject()" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+                        <button onclick="submitReject()" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">
+                            Submit Rejection
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="p-6 border-t border-gray-200 flex items-center justify-between bg-white sticky bottom-0">
+                <button onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    Close
+                </button>
+                <div class="flex items-center gap-3">
+                    <button id="reject-btn" onclick="openRejectForm()" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">
+                        Reject
+                    </button>
+                    <button id="approve-btn" onclick="approveMessageFromModal()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
+                        Approve
+                    </button>
+                    <button id="send-btn" onclick="sendMessageFromModal()" class="px-5 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700 hover:shadow-lg transition-all flex items-center gap-2">
+                        <i class="fas fa-paper-plane"></i>Send Message
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURATION (from dashboard.html)
+        // ============================================
+        
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyASK7guQOA1_cuiQWF8Q0Qu93cR2hU8ssQ",
+            authDomain: "cuculi-2c473.firebaseapp.com",
+            databaseURL: "https://cuculi-2c473.firebaseio.com",
+            projectId: "cuculi-2c473",
+            storageBucket: "cuculi-2c473.firebasestorage.app",
+            messagingSenderId: "500400804498",
+            appId: "1:500400804498:web:b59af78ac6906488b34c4b",
+            measurementId: "G-K1R9LF1XXZ"
+        };
+        const FIREBASE_DATABASE_URL = firebaseConfig.databaseURL;
+        const BASE_PATH = 'Leo';
+
+        // Notification API Configuration
+        const NOTIFICATION_API_URL = 'https://api.cuculi.com/notification';
+        const NOTIFICATION_AUTH_TOKEN = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhdXRoVXNlcklkIjoiNWQxNGEyODg5YzQyOWU0MGI2MDM5ZWJhIn0.TEVZLJlMNZlDkZ6L93y62WrTRdEQo0bEWSTRgxotDxg';
+        const LEO_USER_ID = '5d14a2889c429e40b6039eba';
+        const SENDER_IMAGE_URL = 'https://storage.cuculi.com/production/961e91f8-7e5d-4672-9791-49a5f1ad7da8image.jpg';
+
+        // OpenAI Configuration for message improvement
+        const OPENAI_PROVIDER = 'openai';
+        const OPENAI_API_KEY = ''; // TODO: Set API key from secure configuration
+        const OPENAI_MODEL = 'gpt-4';
+        const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+
+        // ============================================
+        // STATE MANAGEMENT
+        // ============================================
+        
+        const appState = {
+            messages: [],
+            filteredMessages: [],
+            currentMessage: null,
+            filters: {
+                status: 'all',
+                campaign: 'all',
+                search: ''
+            },
+            error: null
+        };
+
+        let pollInterval = null;
+        const POLL_INTERVAL = 5000; // 5 seconds
+
+        // ============================================
+        // DOM UTILITIES
+        // ============================================
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // ============================================
+        // TOAST NOTIFICATIONS
+        // ============================================
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ============================================
+        // FIREBASE API FUNCTIONS
+        // ============================================
+
+        async function loadMessages() {
+            try {
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`);
+                const data = await response.json();
+                if (data) {
+                    if (data.messages) {
+                        if (Array.isArray(data.messages)) {
+                            appState.messages = data.messages.map((msg, idx) => ({ ...msg, _id: msg.user_phone || msg.user_email || `msg_${idx}` }));
+                        } else {
+                            appState.messages = Object.entries(data.messages).map(([key, msg]) => ({ ...msg, _id: key }));
+                        }
+                    } else if (Array.isArray(data)) {
+                        appState.messages = data.map((msg, idx) => ({ ...msg, _id: msg.user_phone || msg.user_email || `msg_${idx}` }));
+                    } else {
+                        appState.messages = Object.entries(data)
+                            .filter(([key]) => key !== 'count' && key !== 'updatedAt')
+                            .map(([key, msg]) => ({ ...msg, _id: key }));
+                    }
+                } else {
+                    appState.messages = [];
+                }
+                applyFilters();
+            } catch (error) {
+                console.error('Error loading messages:', error);
+                showToast('Failed to load messages. Please try again.', 'error');
+                appState.messages = [];
+                applyFilters();
+            }
+        }
+
+        async function updateMessageStatus(messageId, updates) {
+            try {
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`);
+                const messagesData = await response.json();
+                
+                if (!messagesData) return false;
+                
+                // Handle different data structures - normalize to find messages
+                let messages = [];
+                if (messagesData.messages) {
+                    if (Array.isArray(messagesData.messages)) {
+                        messages = messagesData.messages;
+                    } else {
+                        messages = Object.values(messagesData.messages);
+                    }
+                } else if (Array.isArray(messagesData)) {
+                    messages = messagesData;
+                } else {
+                    // Object structure - filter out metadata
+                    messages = Object.entries(messagesData)
+                        .filter(([key]) => key !== 'count' && key !== 'updatedAt')
+                        .map(([key, msg]) => msg);
+                }
+                
+                // Find message to update
+                const idx = messages.findIndex(m =>
+                    (m._id === messageId) ||
+                    (m.user_phone && appState.currentMessage && m.user_phone === appState.currentMessage.user_phone) ||
+                    (m.user_email && appState.currentMessage && m.user_email === appState.currentMessage.user_email) ||
+                    (m.message_text && appState.currentMessage && m.message_text === appState.currentMessage.message_text)
+                );
+                
+                if (idx !== -1) {
+                    // Update the message
+                    messages[idx] = { ...messages[idx], ...updates };
+                    
+                    // Reconstruct the data structure to match original
+                    let updatedData;
+                    if (messagesData.messages && Array.isArray(messagesData.messages)) {
+                        // Original was {messages: [...], count: N, updatedAt: ...}
+                        updatedData = {
+                            ...messagesData,
+                            messages: messages,
+                            updatedAt: new Date().toISOString()
+                        };
+                    } else if (Array.isArray(messagesData)) {
+                        // Original was just an array
+                        updatedData = messages;
+                    } else {
+                        // Original was an object - preserve structure
+                        updatedData = {
+                            ...messagesData,
+                            updatedAt: new Date().toISOString()
+                        };
+                        // Find and update the specific key
+                        const messageKey = Object.keys(messagesData).find(key => {
+                            if (key === 'count' || key === 'updatedAt') return false;
+                            const msg = messagesData[key];
+                            return (msg._id === messageId) ||
+                                   (msg.user_phone && appState.currentMessage && msg.user_phone === appState.currentMessage.user_phone) ||
+                                   (msg.user_email && appState.currentMessage && msg.user_email === appState.currentMessage.user_email);
+                        });
+                        if (messageKey) {
+                            updatedData[messageKey] = messages[idx];
+                        }
+                    }
+                    
+                    await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updatedData)
+                    });
+                    
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('Error updating message:', error);
+                return false;
+            }
+        }
+
+        async function deleteMessageById(messageId) {
+            try {
+                const response = await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`);
+                const messagesData = await response.json();
+                if (!messagesData) return false;
+
+                const matchesId = (msg) => {
+                    if (!msg) return false;
+                    if (msg._id === messageId) return true;
+                    if (msg.user_phone && msg.user_phone === messageId) return true;
+                    if (msg.user_email && msg.user_email === messageId) return true;
+                    if (appState.currentMessage) {
+                        if (msg.user_phone && msg.user_phone === appState.currentMessage.user_phone) return true;
+                        if (msg.user_email && msg.user_email === appState.currentMessage.user_email) return true;
+                        if (msg.message_text && msg.message_text === appState.currentMessage.message_text) return true;
+                    }
+                    return false;
+                };
+
+                let updatedData = null;
+                let deleted = false;
+
+                if (messagesData.messages) {
+                    if (Array.isArray(messagesData.messages)) {
+                        const newMessages = messagesData.messages.filter(msg => !matchesId(msg));
+                        deleted = newMessages.length !== messagesData.messages.length;
+                        updatedData = { ...messagesData, messages: newMessages, updatedAt: new Date().toISOString() };
+                    } else {
+                        const keyToDelete = Object.keys(messagesData.messages).find(key => matchesId(messagesData.messages[key]));
+                        if (keyToDelete) {
+                            updatedData = { ...messagesData, messages: { ...messagesData.messages } };
+                            delete updatedData.messages[keyToDelete];
+                            updatedData.updatedAt = new Date().toISOString();
+                            deleted = true;
+                        }
+                    }
+                } else if (Array.isArray(messagesData)) {
+                    const newMessages = messagesData.filter(msg => !matchesId(msg));
+                    deleted = newMessages.length !== messagesData.length;
+                    updatedData = newMessages;
+                } else {
+                    const keyToDelete = Object.keys(messagesData).find(key => {
+                        if (key === 'count' || key === 'updatedAt') return false;
+                        return matchesId(messagesData[key]);
+                    });
+                    if (keyToDelete) {
+                        updatedData = { ...messagesData };
+                        delete updatedData[keyToDelete];
+                        updatedData.updatedAt = new Date().toISOString();
+                        deleted = true;
+                    }
+                }
+
+                if (!deleted) return false;
+
+                await fetch(`${FIREBASE_DATABASE_URL}/${BASE_PATH}/messages.json`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                });
+
+                return true;
+            } catch (error) {
+                console.error('Error deleting message:', error);
+                return false;
+            }
+        }
+
+        // ============================================
+        // NOTIFICATION API FUNCTIONS
+        // ============================================
+
+        async function sendNotification(userId, messageText, eventId = null) {
+            const payload = {
+                userId: userId,
+                type: 'chat',
+                event: 'NEW_MESSAGE',
+                configType: 'communication',
+                targetEntityType: 'user',
+                channels: ['sms'],
+                data: {
+                    detail: 'notification detail',
+                    senderImage: SENDER_IMAGE_URL,
+                    userId: userId,
+                    eventId: eventId || null,
+                    sender: {
+                        id: LEO_USER_ID
+                    },
+                    timestamp: new Date().toISOString()
+                },
+                text: messageText,
+                createdBy: LEO_USER_ID
+            };
+            
+            console.log('Sending notification payload', { userId, eventId, payload });
+            const response = await fetch(NOTIFICATION_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${NOTIFICATION_AUTH_TOKEN}`
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            console.log('Notification response status', response.status);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Notification response error body', errorText);
+                throw new Error(`API Error: ${response.status} - ${errorText}`);
+            }
+            
+            const result = await response.json();
+            console.log('Notification response body', result);
+            return result;
+        }
+
+        // ============================================
+        // UI RENDERING FUNCTIONS
+        // ============================================
+
+        function applyFilters() {
+            let filtered = [...appState.messages];
+            
+            // Filter by status
+            if (appState.filters.status !== 'all') {
+                filtered = filtered.filter(m => (m.status || 'pending') === appState.filters.status);
+            }
+            // Filter by campaign
+            if (appState.filters.campaign !== 'all') {
+                filtered = filtered.filter(m => (m.campaign || '').toLowerCase() === appState.filters.campaign);
+            }
+            
+            // Filter by search
+            if (appState.filters.search) {
+                const searchLower = appState.filters.search.toLowerCase();
+                filtered = filtered.filter(m => 
+                    (m.message_text && m.message_text.toLowerCase().includes(searchLower)) ||
+                    (m.user_name && m.user_name.toLowerCase().includes(searchLower)) ||
+                    (m.event_name && m.event_name.toLowerCase().includes(searchLower)) ||
+                    (m.campaign && m.campaign.toLowerCase().includes(searchLower))
+                );
+            }
+            
+            appState.filteredMessages = filtered;
+            renderMessages();
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('messages-container');
+            const messages = appState.filteredMessages;
+            
+            if (!messages || messages.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12">
+                        <i class="fas fa-inbox text-gray-400 text-4xl mb-4"></i>
+                        <p class="text-gray-600">No messages found</p>
+                    </div>
+                `;
+                document.getElementById('message-count').textContent = '0';
+                return;
+            }
+            
+            const fragment = document.createDocumentFragment();
+            messages.forEach(message => {
+                const card = createMessageCard(message);
+                fragment.appendChild(card);
+            });
+            
+            container.innerHTML = '';
+            container.appendChild(fragment);
+            document.getElementById('message-count').textContent = messages.length;
+        }
+
+        function createMessageCard(message) {
+            const card = document.createElement('div');
+            const status = message.status || 'pending';
+            const messageId = message._id || message.user_phone || message.user_email;
+            
+            card.className = 'bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow';
+            card.dataset.messageId = messageId;
+            
+            const campaignBadge = message.campaign ? `<span class="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">${escapeHtml(message.campaign)}</span>` : '';
+            
+            // Generate unique dropdown ID
+            const dropdownId = `dropdown-${messageId.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            
+            card.innerHTML = `
+                <div class="mb-4">
+                    <p class="text-lg font-medium text-gray-900 leading-relaxed message-text">${escapeHtml(message.message_text || 'N/A')}</p>
+                </div>
+                
+                <div class="flex items-center justify-between text-sm text-gray-600 mb-4">
+                    <div class="flex items-center gap-4 flex-wrap">
+                        <span><i class="fas fa-user mr-1"></i>${escapeHtml(message.user_name || 'N/A')}</span>
+                        <span><i class="fas fa-calendar mr-1"></i>${escapeHtml(message.event_name || 'N/A')}</span>
+                        ${campaignBadge}
+                    </div>
+                </div>
+                
+                <div class="flex items-center justify-end gap-2">
+                    <div class="relative">
+                        <button onclick="toggleDropdown('${dropdownId}')" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div id="${dropdownId}" class="dropdown-menu hidden">
+                            <button onclick="openModal('${messageId}'); closeDropdown('${dropdownId}')" class="dropdown-item">
+                                <i class="fas fa-eye mr-2"></i>View More
+                            </button>
+                            <button onclick="improveMessageWithAI('${messageId}', event); closeDropdown('${dropdownId}')" class="dropdown-item">
+                                <i class="fas fa-wand-magic-sparkles mr-2"></i>Improve with AI
+                            </button>
+                            <button onclick="rejectMessageFromCard('${messageId}'); closeDropdown('${dropdownId}')" class="dropdown-item text-red-600">
+                                <i class="fas fa-times-circle mr-2"></i>Reject
+                            </button>
+                            <button onclick="deleteMessageFromCard('${messageId}'); closeDropdown('${dropdownId}')" class="dropdown-item text-red-700">
+                                <i class="fas fa-trash-alt mr-2"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+                    ${status === 'sent' ? 
+                        `<button disabled class="px-4 py-2 bg-gray-300 text-gray-600 rounded-lg text-sm font-semibold cursor-not-allowed flex items-center gap-2 opacity-75">
+                            <i class="fas fa-check-circle"></i>Sent
+                        </button>` : 
+                        `<button onclick="sendMessage('${messageId}', event)" class="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700 hover:shadow-md transition-all flex items-center gap-2">
+                            <i class="fas fa-paper-plane"></i>Send
+                        </button>`
+                    }
+                </div>
+            `;
+            
+            const messageTextEl = card.querySelector('.message-text');
+            if (messageTextEl) {
+                messageTextEl.addEventListener('dblclick', () => openModal(messageId));
+            }
+            
+            return card;
+        }
+
+        // ============================================
+        // MODAL FUNCTIONS
+        // ============================================
+
+        function openModal(messageId) {
+            const message = appState.messages.find(m => 
+                (m._id === messageId) ||
+                (m.user_phone === messageId) ||
+                (m.user_email === messageId)
+            );
+            
+            if (!message) {
+                showToast('Message not found', 'error');
+                return;
+            }
+            
+            appState.currentMessage = message;
+            document.getElementById('message-modal').classList.remove('hidden');
+            
+            // Populate modal - reset to display mode
+            const displayEl = document.getElementById('modal-message-text-display');
+            const editEl = document.getElementById('modal-message-text-edit');
+            const actionsEl = document.getElementById('message-edit-actions');
+            const editBtn = document.getElementById('edit-message-btn');
+            
+            displayEl.textContent = message.message_text || 'N/A';
+            editEl.value = message.message_text || '';
+            displayEl.classList.remove('hidden');
+            editEl.classList.add('hidden');
+            actionsEl.classList.add('hidden');
+            editBtn.style.display = 'block';
+            
+            document.getElementById('modal-user-info').innerHTML = `
+                <div><strong>Name:</strong> ${escapeHtml(message.user_name || 'N/A')}</div>
+                ${message.user_email ? `<div><strong>Email:</strong> ${escapeHtml(message.user_email)}</div>` : ''}
+                ${message.user_phone ? `<div><strong>Phone:</strong> ${escapeHtml(message.user_phone)}</div>` : ''}
+                ${message.user_summary ? `<div class="mt-2 pt-2 border-t border-gray-200"><strong>Summary:</strong> <span class="text-gray-700">${escapeHtml(message.user_summary)}</span></div>` : ''}
+            `;
+            
+            document.getElementById('modal-event-info').innerHTML = `
+                <div><strong>Name:</strong> ${escapeHtml(message.event_name || 'N/A')}</div>
+                ${message.event_summary ? `<div class="mt-2 pt-2 border-t border-gray-200"><strong>Summary:</strong> <span class="text-gray-700">${escapeHtml(message.event_summary)}</span></div>` : ''}
+            `;
+            
+            document.getElementById('modal-campaign').innerHTML = message.campaign ? 
+                `<span class="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">${escapeHtml(message.campaign)}</span>` : 
+                'N/A';
+            
+            // Additional details
+            const additional = document.getElementById('modal-additional');
+            additional.innerHTML = '';
+            if (message.similarity_score || message.confidence_percentage) {
+                const score = message.similarity_score || message.confidence_percentage || 0;
+                const scoreClass = score >= 80 ? 'text-green-600' : score >= 60 ? 'text-orange-600' : 'text-red-600';
+                additional.innerHTML += `<div><strong>Confidence:</strong> <span class="${scoreClass} font-semibold">${score}%</span></div>`;
+            }
+            if (message.reasoning) {
+                additional.innerHTML += `<div><strong>Reasoning:</strong> ${escapeHtml(message.reasoning)}</div>`;
+            }
+            
+            // Show/hide buttons based on status
+            const status = message.status || 'pending';
+            document.getElementById('approve-btn').style.display = status === 'pending' ? 'block' : 'none';
+            document.getElementById('reject-btn').style.display = status === 'pending' ? 'block' : 'none';
+            
+            // Update send button based on status
+            const sendBtn = document.getElementById('send-btn');
+            if (status === 'sent') {
+                sendBtn.disabled = true;
+                sendBtn.className = 'px-5 py-2.5 bg-gray-300 text-gray-600 rounded-lg text-sm font-semibold cursor-not-allowed flex items-center gap-2 opacity-75';
+                sendBtn.innerHTML = '<i class="fas fa-check-circle"></i>Sent';
+            } else {
+                sendBtn.disabled = false;
+                sendBtn.className = 'px-5 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700 hover:shadow-lg transition-all flex items-center gap-2';
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>Send Message';
+            }
+            sendBtn.style.display = 'block';
+            
+            // Hide reject form
+            document.getElementById('reject-form').classList.add('hidden');
+        }
+
+        async function deleteCurrentMessage() {
+            if (!appState.currentMessage) {
+                showToast('Open a message before deleting.', 'info');
+                return;
+            }
+            const confirmDelete = confirm('Delete this message? This cannot be undone.');
+            if (!confirmDelete) return;
+
+            const messageId = appState.currentMessage._id || appState.currentMessage.user_phone || appState.currentMessage.user_email;
+            const success = await deleteMessageById(messageId);
+            if (success) {
+                showToast('Message deleted.', 'success');
+                closeModal();
+                await loadMessages();
+            } else {
+                showToast('Failed to delete message.', 'error');
+            }
+        }
+
+        async function deleteMessageFromCard(messageId) {
+            const message = appState.messages.find(m => 
+                (m._id === messageId) ||
+                (m.user_phone === messageId) ||
+                (m.user_email === messageId)
+            );
+            if (!message) {
+                showToast('Message not found', 'error');
+                return;
+            }
+            const confirmDelete = confirm('Delete this message? This cannot be undone.');
+            if (!confirmDelete) return;
+
+            const success = await deleteMessageById(messageId);
+            if (success) {
+                showToast('Message deleted.', 'success');
+                if (appState.currentMessage && (appState.currentMessage._id === messageId || appState.currentMessage.user_phone === messageId || appState.currentMessage.user_email === messageId)) {
+                    closeModal();
+                }
+                await loadMessages();
+            } else {
+                showToast('Failed to delete message.', 'error');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('message-modal').classList.add('hidden');
+            appState.currentMessage = null;
+            document.getElementById('reject-form').classList.add('hidden');
+            // Reset edit mode
+            cancelMessageEdit();
+        }
+
+        // ============================================
+        // DROPDOWN FUNCTIONS
+        // ============================================
+
+        function toggleDropdown(dropdownId) {
+            // Close all other dropdowns first
+            document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                if (menu.id !== dropdownId) {
+                    menu.classList.add('hidden');
+                }
+            });
+            
+            const dropdown = document.getElementById(dropdownId);
+            if (dropdown) {
+                dropdown.classList.toggle('hidden');
+            }
+        }
+
+        function closeDropdown(dropdownId) {
+            const dropdown = document.getElementById(dropdownId);
+            if (dropdown) {
+                dropdown.classList.add('hidden');
+            }
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.relative')) {
+                document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                    menu.classList.add('hidden');
+                });
+            }
+        });
+
+        async function rejectMessageFromCard(messageId) {
+            const message = appState.messages.find(m => 
+                (m._id === messageId) ||
+                (m.user_phone === messageId) ||
+                (m.user_email === messageId)
+            );
+            
+            if (!message) {
+                showToast('Message not found', 'error');
+                return;
+            }
+            
+            // Open modal and show reject form
+            appState.currentMessage = message;
+            document.getElementById('message-modal').classList.remove('hidden');
+            openRejectForm();
+            
+            // Populate modal with message data
+            const displayEl = document.getElementById('modal-message-text-display');
+            const editEl = document.getElementById('modal-message-text-edit');
+            displayEl.textContent = message.message_text || 'N/A';
+            editEl.value = message.message_text || '';
+        }
+
+        // ============================================
+        // OPENAI MESSAGE IMPROVEMENT
+        // ============================================
+
+        function buildImprovementPrompt(message) {
+            const originalMessage = message.message_text || 'Not provided';
+            const userSummary = message.user_summary || 'Not provided';
+            const eventSummary = message.event_summary || 'Not provided';
+            const campaignName = message.campaign || 'Not provided';
+
+            return `
+You are helping Cuculi, a social dining platform, improve their user engagement. Cuculi has many users who sign up for the app but don't RSVP for events. Your task is to rewrite a text message to make it more compelling and increase the likelihood that the recipient will RSVP for an event.
+
+Here is the original message that was going to be sent:
+<original_message>
+${originalMessage}
+</original_message>
+
+Here is information about the user receiving this message:
+<user_summary>
+${userSummary}
+</user_summary>
+
+Here is information about the event:
+<event_summary>
+${eventSummary}
+</event_summary>
+
+This message is part of the following campaign:
+<campaign_name>
+${campaignName}
+</campaign_name>
+
+Your goal is to create an improved SMS text message that will entice the user to RSVP for the event. The improved message should:
+
+- Be personalized based on the user summary and event details
+- Leverage psychological principles such as: scarcity, social proof, curiosity, FOMO (fear of missing out), exclusivity, or reciprocity
+- Be engaging, enjoyable to read, and stand out from typical promotional messages
+- Spark curiosity or excitement about the event
+- Feel authentic and conversational, not overly salesy
+- Be appropriate for SMS (concise, typically under 160 characters if possible, but can be longer if necessary for impact)
+- Maintain a friendly, warm tone consistent with Cuculi's brand as a social dining platform
+- Include a clear call-to-action related to RSVPing
+
+Before writing your improved message, use the scratchpad to think through:
+- What aspects of the user summary are most relevant for personalization
+- What makes this event appealing or unique
+- Which psychological principles would be most effective for this specific user and event
+- How the original message could be improved
+
+<scratchpad>
+Think through your approach here.
+</scratchpad>
+
+Now provide your response in two parts:
+
+First, write your reasoning explaining:
+- What psychological principles you're applying and why
+- How you've personalized the message for this user
+- What specific changes you made from the original message and why
+- Why you believe this approach will increase RSVP likelihood
+
+Put your reasoning inside <reasoning> tags.
+
+Then, write your improved SMS message inside <improved_message> tags. This should be the actual text message that would be sent to the user.
+`.trim();
+        }
+
+        function parseAIResponse(text) {
+            if (!text) {
+                throw new Error('Empty AI response');
+            }
+            const reasoningMatch = text.match(/<reasoning>([\s\S]*?)<\/reasoning>/i);
+            const improvedMatch = text.match(/<improved_message>([\s\S]*?)<\/improved_message>/i);
+            if (!improvedMatch) {
+                throw new Error('Improved message not found in AI response');
+            }
+            return {
+                reasoning: reasoningMatch ? reasoningMatch[1].trim() : 'No reasoning returned.',
+                improvedMessage: improvedMatch[1].trim()
+            };
+        }
+
+        async function callOpenAIForImprovement(prompt) {
+            console.log('[AI] Starting OpenAI request for message improvement');
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 20000);
+            try {
+                const response = await fetch(OPENAI_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${OPENAI_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: OPENAI_MODEL,
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'You are an expert project planning assistant specializing in the Natural Planning Model methodology.'
+                            },
+                            {
+                                role: 'user',
+                                content: prompt
+                            }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 4000
+                    }),
+                    signal: controller.signal
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`OpenAI error ${response.status}: ${errorText}`);
+                }
+
+                const data = await response.json();
+                const aiText = data?.choices?.[0]?.message?.content;
+                console.log('[AI] OpenAI response received');
+                return parseAIResponse(aiText);
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.error('[AI] OpenAI request timed out');
+                    throw new Error('OpenAI request timed out. Please try again.');
+                }
+                console.error('[AI] OpenAI request failed', error);
+                throw error;
+            } finally {
+                clearTimeout(timeout);
+            }
+        }
+
+        async function improveMessageWithAI(messageId, clickEvent) {
+            const targetButton = clickEvent ? clickEvent.target.closest('button') : null;
+            if (targetButton) {
+                targetButton.disabled = true;
+                targetButton.classList.add('opacity-75', 'cursor-not-allowed');
+            }
+
+            try {
+                const message = appState.messages.find(m =>
+                    (m._id === messageId) ||
+                    (m.user_phone === messageId) ||
+                    (m.user_email === messageId)
+                );
+
+                if (!message) {
+                    showToast('Message not found', 'error');
+                    return;
+                }
+
+                appState.currentMessage = message;
+
+                const prompt = buildImprovementPrompt(message);
+                const { improvedMessage, reasoning } = await callOpenAIForImprovement(prompt);
+
+                console.log('[AI] Improvement generated', { messageId, hasReasoning: Boolean(reasoning), improvedLength: improvedMessage.length });
+
+                const updates = {
+                    message_text: improvedMessage,
+                    reasoning: reasoning,
+                    improvedAt: new Date().toISOString(),
+                    improvedBy: 'messages-review-openai'
+                };
+
+                const success = await updateMessageStatus(messageId, updates);
+                if (!success) {
+                    showToast('Failed to save AI improvement to Firebase', 'error');
+                    return;
+                }
+
+                // Update local state
+                message.message_text = improvedMessage;
+                message.reasoning = reasoning;
+
+                // Update card text if present
+                const cardText = document.querySelector(`[data-message-id="${messageId}"] .message-text`);
+                if (cardText) {
+                    cardText.textContent = improvedMessage;
+                }
+
+                // If modal is open for this message, refresh display
+                const modal = document.getElementById('message-modal');
+                if (modal && !modal.classList.contains('hidden') && appState.currentMessage && (appState.currentMessage._id === messageId || appState.currentMessage.user_phone === messageId || appState.currentMessage.user_email === messageId)) {
+                    const displayEl = document.getElementById('modal-message-text-display');
+                    const editEl = document.getElementById('modal-message-text-edit');
+                    if (displayEl) displayEl.textContent = improvedMessage;
+                    if (editEl) editEl.value = improvedMessage;
+
+                    const additional = document.getElementById('modal-additional');
+                    if (additional) {
+                        additional.innerHTML = '';
+                        if (message.similarity_score || message.confidence_percentage) {
+                            const score = message.similarity_score || message.confidence_percentage || 0;
+                            const scoreClass = score >= 80 ? 'text-green-600' : score >= 60 ? 'text-orange-600' : 'text-red-600';
+                            additional.innerHTML += `<div><strong>Confidence:</strong> <span class="${scoreClass} font-semibold">${score}%</span></div>`;
+                        }
+                        additional.innerHTML += `<div><strong>Reasoning:</strong> ${escapeHtml(reasoning)}</div>`;
+                    }
+                }
+
+                await loadMessages();
+                showToast('AI improved message applied and saved', 'success');
+            } catch (error) {
+                console.error('[AI] Improvement failed', error);
+                showToast(error.message || 'AI improvement failed', 'error');
+            } finally {
+                if (targetButton) {
+                    targetButton.disabled = false;
+                    targetButton.classList.remove('opacity-75', 'cursor-not-allowed');
+                }
+            }
+        }
+
+        // ============================================
+        // MESSAGE EDITING FUNCTIONS
+        // ============================================
+
+        function toggleMessageEdit() {
+            const displayEl = document.getElementById('modal-message-text-display');
+            const editEl = document.getElementById('modal-message-text-edit');
+            const actionsEl = document.getElementById('message-edit-actions');
+            const editBtn = document.getElementById('edit-message-btn');
+            
+            if (displayEl.classList.contains('hidden')) {
+                // Cancel edit mode
+                cancelMessageEdit();
+            } else {
+                // Enter edit mode
+                displayEl.classList.add('hidden');
+                editEl.classList.remove('hidden');
+                actionsEl.classList.remove('hidden');
+                editBtn.style.display = 'none';
+                editEl.focus();
+                // Set cursor to end
+                editEl.setSelectionRange(editEl.value.length, editEl.value.length);
+            }
+        }
+
+        function cancelMessageEdit() {
+            const displayEl = document.getElementById('modal-message-text-display');
+            const editEl = document.getElementById('modal-message-text-edit');
+            const actionsEl = document.getElementById('message-edit-actions');
+            const editBtn = document.getElementById('edit-message-btn');
+            
+            // Reset to original message text
+            if (appState.currentMessage) {
+                editEl.value = appState.currentMessage.message_text || '';
+                displayEl.textContent = appState.currentMessage.message_text || 'N/A';
+            }
+            
+            displayEl.classList.remove('hidden');
+            editEl.classList.add('hidden');
+            actionsEl.classList.add('hidden');
+            editBtn.style.display = 'block';
+        }
+
+        async function saveMessageEdit() {
+            if (!appState.currentMessage) return;
+            
+            const editEl = document.getElementById('modal-message-text-edit');
+            const newText = editEl.value.trim();
+            
+            if (!newText) {
+                showToast('Message text cannot be empty', 'error');
+                return;
+            }
+            
+            const messageId = appState.currentMessage._id || appState.currentMessage.user_phone || appState.currentMessage.user_email;
+            const updates = {
+                message_text: newText,
+                editedAt: new Date().toISOString(),
+                editedBy: 'messages-review-user'
+            };
+            
+            const success = await updateMessageStatus(messageId, updates);
+            if (success) {
+                // Update local state
+                appState.currentMessage.message_text = newText;
+                const displayEl = document.getElementById('modal-message-text-display');
+                displayEl.textContent = newText;
+                
+                showToast('Message updated successfully', 'success');
+                await loadMessages();
+                cancelMessageEdit();
+            } else {
+                showToast('Failed to update message', 'error');
+            }
+        }
+
+        function openRejectForm() {
+            document.getElementById('reject-form').classList.remove('hidden');
+        }
+
+        function cancelReject() {
+            document.getElementById('reject-form').classList.add('hidden');
+            document.getElementById('rejection-reason').value = '';
+            document.getElementById('rejection-comment').value = '';
+        }
+
+        async function submitReject() {
+            const reason = document.getElementById('rejection-reason').value;
+            const comment = document.getElementById('rejection-comment').value;
+            
+            if (!reason) {
+                showToast('Please select a rejection reason', 'error');
+                return;
+            }
+            
+            if (!appState.currentMessage) return;
+            
+            const messageId = appState.currentMessage._id || appState.currentMessage.user_phone || appState.currentMessage.user_email;
+            const updates = {
+                status: 'denied',
+                reviewedAt: new Date().toISOString(),
+                reviewerId: 'messages-review-user',
+                decisionReason: reason,
+                reviewerComment: comment || null
+            };
+            
+            const success = await updateMessageStatus(messageId, updates);
+            if (success) {
+                showToast('Message rejected successfully', 'success');
+                await loadMessages();
+                closeModal();
+            } else {
+                showToast('Failed to reject message', 'error');
+            }
+        }
+
+        async function approveMessageFromModal() {
+            if (!appState.currentMessage) return;
+            
+            const messageId = appState.currentMessage._id || appState.currentMessage.user_phone || appState.currentMessage.user_email;
+            const updates = {
+                status: 'approved',
+                reviewedAt: new Date().toISOString(),
+                reviewerId: 'messages-review-user'
+            };
+            
+            const success = await updateMessageStatus(messageId, updates);
+            if (success) {
+                showToast('Message approved successfully', 'success');
+                await loadMessages();
+                closeModal();
+            } else {
+                showToast('Failed to approve message', 'error');
+            }
+        }
+
+        async function sendMessageFromModal() {
+            if (!appState.currentMessage) return;
+            
+            const message = appState.currentMessage;
+            if ((message.status || 'pending') === 'sent') {
+                showToast('Message already sent.', 'info');
+                return;
+            }
+            
+            // Check if message is being edited - use edited text if available
+            const editEl = document.getElementById('modal-message-text-edit');
+            let messageText = message.message_text;
+            if (!editEl.classList.contains('hidden')) {
+                const editedText = editEl.value.trim();
+                if (editedText && editedText !== message.message_text) {
+                    // Save the edit first
+                    messageText = editedText;
+                    const messageId = message._id || message.user_phone || message.user_email;
+                    await updateMessageStatus(messageId, {
+                        message_text: editedText,
+                        editedAt: new Date().toISOString(),
+                        editedBy: 'messages-review-user'
+                    });
+                    message.message_text = editedText;
+                    appState.currentMessage.message_text = editedText;
+                }
+            }
+            
+            // Allow sending even if not approved - streamlined workflow
+            const userId = message.user_id || message.userId;
+            if (!userId) {
+                showToast('User ID is missing. Cannot send message.', 'error');
+                return;
+            }
+            
+            if (!messageText) {
+                showToast('Message text is missing. Cannot send message.', 'error');
+                return;
+            }
+            
+            if (!confirm(`Send SMS to ${message.user_name || 'user'}?\n\nMessage: ${messageText.substring(0, 100)}...`)) {
+                return;
+            }
+            
+            const sendBtn = document.getElementById('send-btn');
+            const originalHTML = sendBtn.innerHTML;
+            sendBtn.disabled = true;
+            sendBtn.classList.add('opacity-75', 'cursor-not-allowed');
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+            
+            let sendSucceeded = false;
+            try {
+                const eventId = message.event_id || message.eventId || null;
+                await sendNotification(userId, messageText, eventId);
+                
+                const updates = {
+                    status: 'sent',
+                    sentAt: new Date().toISOString()
+                };
+                
+                const messageId = message._id || message.user_phone || message.user_email;
+                await updateMessageStatus(messageId, updates);
+                message.status = 'sent'; // keep in-session state in sync
+                
+                // Update button in modal to show sent state
+                sendBtn.disabled = true;
+                sendBtn.classList.remove('bg-orange-600', 'hover:bg-orange-700', 'hover:shadow-lg', 'text-white');
+                sendBtn.classList.add('bg-gray-300', 'text-gray-600', 'cursor-not-allowed', 'opacity-75');
+                sendBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Sent';
+                sendSucceeded = true;
+                
+                showToast('Message sent successfully!', 'success');
+                await loadMessages();
+                closeModal();
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showToast('Failed to send message. Please try again.', 'error');
+            } finally {
+                if (!sendSucceeded) {
+                    sendBtn.disabled = false;
+                    sendBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                    sendBtn.innerHTML = originalHTML;
+                }
+            }
+        }
+
+        function sendMessage(messageId, event) {
+            const message = appState.messages.find(m => 
+                (m._id === messageId) ||
+                (m.user_phone === messageId) ||
+                (m.user_email === messageId)
+            );
+            
+            if (!message) {
+                showToast('Message not found', 'error');
+                return;
+            }
+            if ((message.status || 'pending') === 'sent') {
+                showToast('Message already sent.', 'info');
+                return;
+            }
+            
+            // Allow sending even if not approved - streamlined workflow
+            const userId = message.user_id || message.userId;
+            if (!userId) {
+                showToast('User ID is missing. Cannot send message.', 'error');
+                return;
+            }
+            
+            if (!message.message_text) {
+                showToast('Message text is missing. Cannot send message.', 'error');
+                return;
+            }
+            
+            if (!confirm(`Send SMS to ${message.user_name || 'user'}?\n\nMessage: ${message.message_text.substring(0, 100)}...`)) {
+                return;
+            }
+            
+            const button = event.target.closest('button');
+            const originalHTML = button.innerHTML;
+            button.disabled = true;
+            button.classList.add('opacity-75', 'cursor-not-allowed');
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+            
+            (async () => {
+                let sendSucceeded = false;
+                try {
+                    const eventId = message.event_id || message.eventId || null;
+                    await sendNotification(userId, message.message_text, eventId);
+                    
+                    const updates = {
+                        status: 'sent',
+                        sentAt: new Date().toISOString()
+                    };
+                    
+                    await updateMessageStatus(messageId, updates);
+                    
+                    // Update button to show sent state
+                    button.disabled = true;
+                    button.classList.remove('bg-orange-600', 'hover:bg-orange-700', 'hover:shadow-md', 'text-white');
+                    button.classList.add('bg-gray-300', 'text-gray-600', 'cursor-not-allowed', 'opacity-75');
+                    button.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Sent';
+                    sendSucceeded = true;
+                    
+                    showToast('Message sent successfully!', 'success');
+                    await loadMessages();
+                } catch (error) {
+                    console.error('Error sending message:', error);
+                    showToast('Failed to send message. Please try again.', 'error');
+                } finally {
+                    if (!sendSucceeded) {
+                        button.disabled = false;
+                        button.classList.remove('opacity-75', 'cursor-not-allowed');
+                        button.innerHTML = originalHTML;
+                    }
+                }
+            })();
+        }
+
+        // ============================================
+        // POLLING FUNCTIONS
+        // ============================================
+
+        function startPolling() {
+            if (pollInterval) return;
+            
+            pollInterval = setInterval(() => {
+                if (document.hidden) return;
+                if (!document.getElementById('message-modal').classList.contains('hidden')) return;
+                loadMessages();
+            }, POLL_INTERVAL);
+        }
+
+        function stopPolling() {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+        }
+
+        // ============================================
+        // EVENT HANDLERS
+        // ============================================
+
+        const debouncedSearch = debounce((query) => {
+            appState.filters.search = query;
+            applyFilters();
+        }, 300);
+
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            debouncedSearch(e.target.value);
+        });
+
+        document.getElementById('filter-status').addEventListener('change', (e) => {
+            const val = e.target.value;
+            appState.filters.status = val;
+            applyFilters();
+        });
+        document.getElementById('filter-campaign').addEventListener('change', (e) => {
+            appState.filters.campaign = e.target.value;
+            applyFilters();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !document.getElementById('message-modal').classList.contains('hidden')) {
+                closeModal();
+            }
+        });
+
+        // Stop polling when page is hidden
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopPolling();
+            } else {
+                startPolling();
+            }
+        });
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadMessages().then(() => {
+                startPolling();
+            });
+        });
+
+        // Cleanup on beforeunload
+        window.addEventListener('beforeunload', () => {
+            stopPolling();
+        });
+    </script>
+</body>
+</html>
+
