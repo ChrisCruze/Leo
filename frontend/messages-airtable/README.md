@@ -25,7 +25,18 @@ Help Leo send personalized, effective messages to Cuculi users to increase event
 - **Base ID:** `appaquqFN7vvvZGcq` (Cuculi)
 - **Table Name:** Messages
 - **Table ID:** `tbljma5S4NhUn1OYl`
-- **API Key:** `"patdMoOPya9xAXGLG.3a26ab9163b441fa24a5e1edc3d775c4608e447dd7c0ffa50d6de697d121c022"` (Hardcoded in script)
+- **API Key:** `"patdMoOPya9xAXGLG.3a26ab9163b441fa24a5e1edc3d775c4608e447dd7c0ffa50d6de697d121c022"`
+
+### API Key Configuration
+**IMPORTANT:** The Airtable API key must be hardcoded directly in the `messages-airtable.html` script. Do not use environment variables or external configuration files. Hardcode it as follows:
+
+```javascript
+const AIRTABLE_CONFIG = {
+    apiKey: "patdMoOPya9xAXGLG.3a26ab9163b441fa24a5e1edc3d775c4608e447dd7c0ffa50d6de697d121c022",
+    baseId: "appaquqFN7vvvZGcq",
+    tableId: "tbljma5S4NhUn1OYl"
+};
+```
 
 ### Required Airtable Fields
 
@@ -278,7 +289,7 @@ frontend/messages-airtable/
 
 ## Notes
 
-- The Airtable API key is hardcoded in the script: `"patdMoOPya9xAXGLG.3a26ab9163b441fa24a5e1edc3d775c4608e447dd7c0ffa50d6de697d121c022"`
+- **IMPORTANT:** The Airtable API key must be hardcoded directly in the `messages-airtable.html` script. Do not use environment variables or external configuration. The API key is: `"patdMoOPya9xAXGLG.3a26ab9163b441fa24a5e1edc3d775c4608e447dd7c0ffa50d6de697d121c022"`
 - Messages are pulled from the backend script that populates Airtable
 - Check `backend/utils/mongodb_pull/mongodb_pull.py` for field names and data structure
 - This is a human-in-the-loop tool - Leo generates, humans approve/refine
