@@ -1435,6 +1435,77 @@ class SummaryGeneration:
             name = f"{first_name} {last_name}".strip() or 'Unknown'
             return f"User: {name}"
     
+    def format_event_start_date(self, start_date: Any) -> str:
+        """
+        Parse and format an event start date into a human-readable string.
+        
+        Parses ISO 8601 date strings and formats them as:
+        "Monday, Dec 15, 2025 at 7:30 PM"
+        
+        Args:
+            start_date: ISO 8601 date string (e.g., "2019-08-05T17:00:00.000Z"),
+                       datetime object, or None/empty value
+                       
+        Returns:
+            Formatted date string (e.g., "Monday, Aug 5, 2019 at 5 PM"),
+            or 'TBD' if the date is invalid/missing, or the original string
+            if parsing fails but a value was provided.
+            
+        Examples:
+            Input: "2019-08-05T17:00:00.000Z"
+            Output: "Monday, Aug 5, 2019 at 5 PM"
+            
+            Input: "2025-12-15T19:30:00.000Z"
+            Output: "Monday, Dec 15, 2025 at 7:30 PM"
+            
+            Input: None or ""
+            Output: "TBD"
+            
+            Input: "invalid-date"
+            Output: "invalid-date"
+        """
+        if not start_date:
+            return 'TBD'
+        
+        try:
+            event_dt = parse_iso_date(start_date)
+            if event_dt:
+                # Format: "Monday, Dec 15, 2025 at 7:30 PM"
+                day_of_week = event_dt.strftime('%A')
+                month_abbr = event_dt.strftime('%b')
+                day = event_dt.strftime('%d').lstrip('0')
+                year = event_dt.strftime('%Y')
+                
+                # Format time in 12-hour format with AM/PM
+                hour = event_dt.hour
+                minute = event_dt.minute
+                if minute == 0:
+                    if hour == 0:
+                        time_str = "12 AM"
+                    elif hour < 12:
+                        time_str = f"{hour} AM"
+                    elif hour == 12:
+                        time_str = "12 PM"
+                    else:
+                        time_str = f"{hour - 12} PM"
+                else:
+                    if hour == 0:
+                        time_str = f"12:{minute:02d} AM"
+                    elif hour < 12:
+                        time_str = f"{hour}:{minute:02d} AM"
+                    elif hour == 12:
+                        time_str = f"12:{minute:02d} PM"
+                    else:
+                        time_str = f"{hour - 12}:{minute:02d} PM"
+                
+                return f"{day_of_week}, {month_abbr} {day}, {year} at {time_str}"
+            else:
+                # If parsing returns None but we have a value, return it as string
+                return str(start_date)
+        except Exception:
+            # If parsing fails with exception but we have a value, return it as string
+            return str(start_date)
+    
     def generate_event_summary(self, event: Dict[str, Any]) -> str:
         """
         Generate event summary, removing HTML tags from description.
@@ -1463,42 +1534,7 @@ class SummaryGeneration:
                 participation_pct = (participant_count / max_participants) * 100
             
             # Format date with day of week and better time format
-            date_str = 'TBD'
-            if start_date:
-                try:
-                    event_dt = parse_iso_date(start_date)
-                    if event_dt:
-                        # Format: "Monday, Dec 15, 2025 at 7:30 PM"
-                        day_of_week = event_dt.strftime('%A')
-                        month_abbr = event_dt.strftime('%b')
-                        day = event_dt.strftime('%d').lstrip('0')
-                        year = event_dt.strftime('%Y')
-                        
-                        # Format time in 12-hour format with AM/PM
-                        hour = event_dt.hour
-                        minute = event_dt.minute
-                        if minute == 0:
-                            if hour == 0:
-                                time_str = "12 AM"
-                            elif hour < 12:
-                                time_str = f"{hour} AM"
-                            elif hour == 12:
-                                time_str = "12 PM"
-                            else:
-                                time_str = f"{hour - 12} PM"
-                        else:
-                            if hour == 0:
-                                time_str = f"12:{minute:02d} AM"
-                            elif hour < 12:
-                                time_str = f"{hour}:{minute:02d} AM"
-                            elif hour == 12:
-                                time_str = f"12:{minute:02d} PM"
-                            else:
-                                time_str = f"{hour - 12}:{minute:02d} PM"
-                        
-                        date_str = f"{day_of_week}, {month_abbr} {day}, {year} at {time_str}"
-                except Exception:
-                    date_str = str(start_date)
+            date_str = self.format_event_start_date(start_date)
             
             categories_str = ", ".join([str(c) for c in categories[:3]]) if categories else "None"
             features_str = ", ".join([str(f) for f in features[:3]]) if features else "None"
