@@ -25,7 +25,7 @@ Help Leo send personalized, effective messages to Cuculi users to increase event
 - **Base ID:** `appaquqFN7vvvZGcq` (Cuculi)
 - **Table Name:** Messages
 - **Table ID:** `tbljma5S4NhUn1OYl`
-- **API Key:** `YOUR_AIRTABLE_API_KEY` (Replace with actual key - provided separately for security)
+- **API Key:** `"patdMoOPya9xAXGLG.3a26ab9163b441fa24a5e1edc3d775c4608e447dd7c0ffa50d6de697d121c022"` (Hardcoded in script)
 
 ### Required Airtable Fields
 
@@ -278,11 +278,12 @@ frontend/messages-airtable/
 
 ## Notes
 
-- The Airtable API key is hardcoded for simplicity (not production-ready)
+- The Airtable API key is hardcoded in the script: `"patdMoOPya9xAXGLG.3a26ab9163b441fa24a5e1edc3d775c4608e447dd7c0ffa50d6de697d121c022"`
 - Messages are pulled from the backend script that populates Airtable
 - Check `backend/utils/mongodb_pull/mongodb_pull.py` for field names and data structure
 - This is a human-in-the-loop tool - Leo generates, humans approve/refine
 - Focus on elegant, clean design - this is a professional tool used daily
+- **Note:** Once `messages-airtable.html` is created, update the root `index.html` to link to it
 
 ---
 
