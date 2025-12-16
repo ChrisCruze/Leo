@@ -21,15 +21,15 @@ logger = logging.getLogger(__name__)
 class FirebaseManager:
     """Centralized Firebase manager for campaign scripts with local testing support"""
     
-    def __init__(self, firebase_url: str, base_path: str = 'Leo', 
+    def __init__(self, firebase_url: str, base_path: str = 'Leo2',
                  save_local: bool = False, local_data_dir: str = None,
                  logger_instance: logging.Logger = None):
         """
         Initialize Firebase Manager
-        
+
         Args:
             firebase_url: Firebase database URL
-            base_path: Base path in Firebase (default: 'Leo')
+            base_path: Base path in Firebase (default: 'Leo2')
             save_local: If True, save to local files instead of Firebase
             local_data_dir: Directory for local files (campaign's data/output folder)
             logger_instance: Optional logger instance
