@@ -351,6 +351,12 @@
                     <div id="modal-reasoning" class="p-4 bg-yellow-50 rounded-lg text-sm"></div>
                 </div>
 
+                <!-- Personalization Notes -->
+                <div id="modal-personalization-notes-section" class="hidden">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Personalization Notes</h3>
+                    <div id="modal-personalization-notes" class="p-4 bg-indigo-50 rounded-lg text-sm"></div>
+                </div>
+
                 <!-- Metadata -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
                     <div>
@@ -366,8 +372,20 @@
                         <p id="modal-confidence" class="font-medium"></p>
                     </div>
                     <div>
+                        <p class="text-xs text-gray-500">Similarity</p>
+                        <p id="modal-similarity" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">Character Count</p>
+                        <p id="modal-character-count" class="font-medium"></p>
+                    </div>
+                    <div>
                         <p class="text-xs text-gray-500">Created</p>
                         <p id="modal-created" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">Updated</p>
+                        <p id="modal-updated" class="font-medium"></p>
                     </div>
                 </div>
             </div>
@@ -545,28 +563,34 @@
                 createdTime: airtableRecord.createdTime,
 
                 // Message fields
-                message: fields['Message'] || '',
-                userName: fields['User Name'] || 'Unknown User',
-                userId: fields['User ID'] || '',
-                eventName: fields['Event Name'] || 'Unknown Event',
-                eventId: fields['Event ID'] || '',
+                message: fields['message'] || '',
+                userName: fields['user_name'] || 'Unknown User',
+                userId: fields['user_id'] || '',
+                userEmail: fields['user_email'] || '',
+                userPhone: fields['user_phone'] || '',
+                eventName: fields['event_name'] || 'Unknown Event',
+                eventId: fields['event_id'] || '',
 
                 // Context fields
-                reasoning: fields['Reasoning'] || '',
-                userSummary: fields['User Summary'] || '',
-                eventSummary: fields['Event Summary'] || '',
+                reasoning: fields['reasoning'] || '',
+                userSummary: fields['user_summary'] || '',
+                eventSummary: fields['event_summary'] || '',
+                personalizationNotes: fields['personalization_notes'] || '',
 
                 // Workflow fields
-                status: fields['Status'] || 'pending',
-                rejectionReason: fields['Rejection Reason'] || '',
-                rejectionComment: fields['Rejection Comment'] || '',
+                status: fields['status'] || 'pending',
+                rejectionReason: fields['rejection_reason'] || '',
+                rejectionComment: fields['rejection_comment'] || '',
 
                 // Metadata
-                campaign: fields['Campaign'] || '',
-                confidenceScore: fields['Confidence Score'] || 0,
-                createdAt: fields['Created At'] || airtableRecord.createdTime,
-                reviewedAt: fields['Reviewed At'] || null,
-                sentAt: fields['Sent At'] || null
+                campaign: fields['campaign'] || '',
+                confidenceScore: fields['confidence_percentage'] || 0,
+                similarityScore: fields['similarity_score'] || 0,
+                characterCount: fields['character_count'] || 0,
+                createdAt: fields['createdAt'] || airtableRecord.createdTime,
+                updatedAt: fields['updatedAt'] || null,
+                reviewedAt: fields['reviewed_at'] || null,
+                sentAt: fields['sent_at'] || null
             };
         }
 
@@ -1083,8 +1107,8 @@
             try {
                 // Update in Airtable
                 await updateMessageInAirtable(messageId, {
-                    'Status': 'approved',
-                    'Reviewed At': new Date().toISOString()
+                    'status': 'approved',
+                    'reviewed_at': new Date().toISOString()
                 });
 
                 showToast('Message approved successfully', 'success');
@@ -1108,10 +1132,10 @@
             try {
                 // Update in Airtable
                 await updateMessageInAirtable(messageId, {
-                    'Status': 'denied',
-                    'Rejection Reason': reason,
-                    'Rejection Comment': comment || '',
-                    'Reviewed At': new Date().toISOString()
+                    'status': 'denied',
+                    'rejection_reason': reason,
+                    'rejection_comment': comment || '',
+                    'reviewed_at': new Date().toISOString()
                 });
 
                 showToast('Message denied', 'success');
@@ -1162,6 +1186,8 @@
             // User info
             document.getElementById('modal-user-info').innerHTML = `
                 <p><strong>Name:</strong> ${escapeHtml(message.userName)}</p>
+                ${message.userEmail ? `<p><strong>Email:</strong> ${escapeHtml(message.userEmail)}</p>` : ''}
+                ${message.userPhone ? `<p><strong>Phone:</strong> ${escapeHtml(message.userPhone)}</p>` : ''}
                 <p><strong>ID:</strong> <code class="text-xs bg-gray-200 px-1 rounded">${escapeHtml(message.userId)}</code></p>
             `;
 
@@ -1198,11 +1224,23 @@
                 reasoningSection.classList.add('hidden');
             }
 
+            // Personalization Notes (show if exists)
+            const personalizationNotesSection = document.getElementById('modal-personalization-notes-section');
+            if (message.personalizationNotes) {
+                document.getElementById('modal-personalization-notes').textContent = message.personalizationNotes;
+                personalizationNotesSection.classList.remove('hidden');
+            } else {
+                personalizationNotesSection.classList.add('hidden');
+            }
+
             // Metadata
             document.getElementById('modal-status').innerHTML = getStatusBadgeHtml(message.status);
             document.getElementById('modal-campaign').textContent = message.campaign || '-';
             document.getElementById('modal-confidence').textContent = message.confidenceScore ? `${message.confidenceScore}%` : '-';
+            document.getElementById('modal-similarity').textContent = message.similarityScore ? `${message.similarityScore}%` : '-';
+            document.getElementById('modal-character-count').textContent = message.characterCount ? message.characterCount : '-';
             document.getElementById('modal-created').textContent = formatDate(message.createdAt);
+            document.getElementById('modal-updated').textContent = message.updatedAt ? formatDate(message.updatedAt) : '-';
 
             // Action buttons based on status
             const actionsHtml = getModalActionButtons(message);
@@ -1301,7 +1339,7 @@
             try {
                 // Update in Airtable
                 await updateMessageInAirtable(appState.currentMessage.id, {
-                    'Message': newMessage
+                    'message': newMessage
                 });
 
                 // Update local state
