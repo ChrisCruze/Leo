@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages Review · Leo AI Agent</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
+
+    <!-- jQuery (required for DataTables) -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+    <!-- DataTables Buttons for export -->
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.colVis.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: #FAFAFA;
+        }
+
+        /* Smooth transitions */
+        button, a {
+            transition: all 0.2s ease;
+        }
+
+        /* Card hover effects */
+        .group:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Focus styles for accessibility */
+        button:focus,
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: 2px solid #F97316;
+            outline-offset: 2px;
+        }
+
+        /* Loading spinner animation */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .fa-spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        /* Toast animations */
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-enter {
+            animation: slideInRight 0.3s ease-out;
+        }
+
+        /* Modal backdrop blur */
+        #message-modal,
+        #deny-modal {
+            backdrop-filter: blur(4px);
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        /* Line clamping */
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Responsive grid improvements */
+        @media (max-width: 768px) {
+            #cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+            #cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 md:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <!-- Logo & Title -->
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-robot text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">Leo Messages</h1>
+                        <p class="text-sm text-gray-600">Human-in-the-Loop AI Agent Control</p>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="hidden md:flex items-center gap-6">
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-orange-600" id="header-message-count">0</p>
+                        <p class="text-xs text-gray-500">Messages</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-yellow-600" id="header-pending-count">0</p>
+                        <p class="text-xs text-gray-500">Pending</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-green-600" id="header-approved-count">0</p>
+                        <p class="text-xs text-gray-500">Approved</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="p-4 md:p-8 max-w-7xl mx-auto">
+        <!-- Filters and View Toggle -->
+        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-6">
+            <div class="flex flex-col md:flex-row items-start md:items-center gap-4 justify-between">
+                <!-- Filters -->
+                <div class="flex flex-wrap items-center gap-4">
+                    <!-- Search -->
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        <input
+                            type="text"
+                            id="search-input"
+                            placeholder="Search messages..."
+                            class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+
+                    <!-- Status Filter -->
+                    <select id="filter-status" class="px-4 py-2 border border-gray-300 rounded-lg text-sm">
+                        <option value="all">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="denied">Denied</option>
+                        <option value="sent">Sent</option>
+                    </select>
+
+                    <!-- Campaign Filter -->
+                    <select id="filter-campaign" class="px-4 py-2 border border-gray-300 rounded-lg text-sm">
+                        <option value="all">All Campaigns</option>
+                        <option value="seat-newcomers">Seat Newcomers</option>
+                        <option value="fill-the-table">Fill the Table</option>
+                        <option value="return-to-table">Return to Table</option>
+                    </select>
+
+                    <!-- Message Count -->
+                    <span id="message-count" class="text-sm text-gray-600 font-medium">0 messages</span>
+                </div>
+
+                <!-- View Toggle -->
+                <div class="flex items-center gap-4">
+                    <span class="text-sm font-medium text-gray-700">View:</span>
+                    <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden">
+                        <button
+                            id="view-toggle-table"
+                            onclick="switchView('table')"
+                            class="px-4 py-2 text-sm font-medium bg-orange-600 text-white">
+                            <i class="fas fa-table mr-2"></i>Table
+                        </button>
+                        <button
+                            id="view-toggle-card"
+                            onclick="switchView('card')"
+                            class="px-4 py-2 text-sm font-medium bg-white text-gray-700 hover:bg-gray-50">
+                            <i class="fas fa-th-large mr-2"></i>Cards
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table View Container -->
+        <div id="table-view-container" class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <table id="messages-table" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Event</th>
+                        <th>Message</th>
+                        <th>Status</th>
+                        <th>Campaign</th>
+                        <th>Confidence</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Rows will be populated by DataTables -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Card View Container -->
+        <div id="card-view-container" class="hidden">
+            <div id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Cards will be rendered here -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading State -->
+    <div id="loading" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center" style="display: none;">
+        <div class="bg-white rounded-lg p-6 shadow-xl">
+            <i class="fas fa-spinner text-4xl text-orange-600 mb-3"></i>
+            <p class="text-gray-700 font-medium">Loading messages...</p>
+        </div>
+    </div>
+
+    <!-- Message Detail Modal -->
+    <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <!-- Modal Header -->
+            <div class="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+                <h2 class="text-2xl font-semibold text-gray-900">Message Details</h2>
+                <button onclick="closeMessageModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 space-y-6">
+                <!-- Message Text -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-medium text-gray-700">Message</h3>
+                        <button
+                            id="edit-message-btn"
+                            onclick="toggleMessageEdit()"
+                            class="text-sm text-orange-600 hover:text-orange-700 font-medium">
+                            <i class="fas fa-edit mr-1"></i>Edit
+                        </button>
+                    </div>
+
+                    <!-- Display mode -->
+                    <div id="modal-message-display" class="p-4 bg-gray-50 rounded-lg text-lg leading-relaxed"></div>
+
+                    <!-- Edit mode (hidden by default) -->
+                    <div id="modal-message-edit-container" class="hidden">
+                        <textarea
+                            id="modal-message-edit"
+                            rows="6"
+                            class="w-full p-4 border border-gray-300 rounded-lg text-lg leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"></textarea>
+                        <div class="flex items-center gap-2 mt-2">
+                            <button
+                                onclick="saveMessageEdit()"
+                                class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium">
+                                <i class="fas fa-save mr-1"></i>Save Changes
+                            </button>
+                            <button
+                                onclick="cancelMessageEdit()"
+                                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-medium">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User & Event Info Side by Side -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- User Info -->
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">User</h3>
+                        <div id="modal-user-info" class="p-4 bg-blue-50 rounded-lg text-sm space-y-2"></div>
+                    </div>
+
+                    <!-- Event Info -->
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Event</h3>
+                        <div id="modal-event-info" class="p-4 bg-green-50 rounded-lg text-sm space-y-2"></div>
+                    </div>
+                </div>
+
+                <!-- User Summary -->
+                <div id="modal-user-summary-section" class="hidden">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">User Summary</h3>
+                    <div id="modal-user-summary" class="p-4 bg-purple-50 rounded-lg text-sm"></div>
+                </div>
+
+                <!-- Event Summary -->
+                <div id="modal-event-summary-section" class="hidden">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Event Summary</h3>
+                    <div id="modal-event-summary" class="p-4 bg-orange-50 rounded-lg text-sm"></div>
+                </div>
+
+                <!-- Reasoning -->
+                <div id="modal-reasoning-section" class="hidden">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">AI Reasoning</h3>
+                    <div id="modal-reasoning" class="p-4 bg-yellow-50 rounded-lg text-sm"></div>
+                </div>
+
+                <!-- Metadata -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
+                    <div>
+                        <p class="text-xs text-gray-500">Status</p>
+                        <p id="modal-status" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">Campaign</p>
+                        <p id="modal-campaign" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">Confidence</p>
+                        <p id="modal-confidence" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">Created</p>
+                        <p id="modal-created" class="font-medium"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer Actions -->
+            <div class="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex items-center justify-between">
+                <button onclick="closeMessageModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    Close
+                </button>
+                <div id="modal-actions" class="flex items-center gap-3">
+                    <!-- Action buttons populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deny Modal -->
+    <div id="deny-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div class="p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Deny Message</h2>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Reason for Denial <span class="text-red-500">*</span>
+                        </label>
+                        <select id="deny-reason" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            <option value="">Select a reason...</option>
+                            <option value="tone">Tone/voice inappropriate</option>
+                            <option value="generic">Message too generic</option>
+                            <option value="incorrect">Incorrect information</option>
+                            <option value="personalization">Not personalized enough</option>
+                            <option value="compliance">Compliance issue</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Additional Comments (Optional)
+                        </label>
+                        <textarea
+                            id="deny-comment"
+                            rows="3"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg resize-none"
+                            placeholder="Provide additional feedback..."></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex items-center justify-end gap-3">
+                    <button onclick="closeDenyModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button onclick="submitDeny()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        Submit Denial
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // AIRTABLE CONFIGURATION
+        // ============================================
+
+        const AIRTABLE_CONFIG = {
+            apiKey: "patdMoOPya9xAXGLG.3a26ab9163b441fa24a5e1edc3d775c4608e447dd7c0ffa50d6de697d121c022",
+            baseId: "appaquqFN7vvvZGcq",
+            tableName: "Messages",
+            tableId: "tbljma5S4NhUn1OYl"
+        };
+
+        const AIRTABLE_API_URL = `https://api.airtable.com/v0/${AIRTABLE_CONFIG.baseId}/${AIRTABLE_CONFIG.tableId}`;
+
+        // Headers for Airtable API requests
+        const AIRTABLE_HEADERS = {
+            'Authorization': `Bearer ${AIRTABLE_CONFIG.apiKey}`,
+            'Content-Type': 'application/json'
+        };
+
+        // ============================================
+        // STATE MANAGEMENT
+        // ============================================
+
+        const appState = {
+            messages: [],           // All messages from Airtable
+            filteredMessages: [],   // Messages after applying filters
+            currentView: 'table',   // 'table' or 'card'
+            currentMessage: null,   // Currently selected message for modal
+            filters: {
+                status: 'all',      // 'all', 'pending', 'approved', 'denied', 'sent'
+                campaign: 'all',    // 'all', 'seat-newcomers', 'fill-the-table', etc.
+                search: ''          // Search query
+            },
+            isLoading: false,
+            error: null
+        };
+
+        // ============================================
+        // AIRTABLE API FUNCTIONS
+        // ============================================
+
+        /**
+         * Fetch all messages from Airtable with pagination
+         * Airtable returns max 100 records per request
+         */
+        async function fetchMessagesFromAirtable() {
+            try {
+                appState.isLoading = true;
+                showLoading(true);
+
+                let allRecords = [];
+                let offset = null;
+
+                do {
+                    // Build URL with pagination
+                    let url = `${AIRTABLE_API_URL}?pageSize=100`;
+                    if (offset) {
+                        url += `&offset=${offset}`;
+                    }
+
+                    // Fetch from Airtable
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: AIRTABLE_HEADERS
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Airtable API error: ${response.status} ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+
+                    // Add records from this page
+                    allRecords = allRecords.concat(data.records);
+
+                    // Check if there are more pages
+                    offset = data.offset || null;
+
+                } while (offset);
+
+                console.log(`✓ Fetched ${allRecords.length} messages from Airtable`);
+
+                // Transform Airtable records to our format
+                appState.messages = allRecords.map(transformAirtableRecord);
+                appState.filteredMessages = [...appState.messages];
+
+                appState.isLoading = false;
+                appState.error = null;
+                showLoading(false);
+
+                return appState.messages;
+
+            } catch (error) {
+                console.error('Error fetching messages:', error);
+                appState.isLoading = false;
+                appState.error = error.message;
+                showLoading(false);
+                showToast('Failed to load messages from Airtable', 'error');
+                return [];
+            }
+        }
+
+        /**
+         * Transform Airtable record format to our app format
+         */
+        function transformAirtableRecord(airtableRecord) {
+            const fields = airtableRecord.fields;
+
+            return {
+                // Airtable metadata
+                id: airtableRecord.id,          // Airtable record ID
+                createdTime: airtableRecord.createdTime,
+
+                // Message fields
+                message: fields['Message'] || '',
+                userName: fields['User Name'] || 'Unknown User',
+                userId: fields['User ID'] || '',
+                eventName: fields['Event Name'] || 'Unknown Event',
+                eventId: fields['Event ID'] || '',
+
+                // Context fields
+                reasoning: fields['Reasoning'] || '',
+                userSummary: fields['User Summary'] || '',
+                eventSummary: fields['Event Summary'] || '',
+
+                // Workflow fields
+                status: fields['Status'] || 'pending',
+                rejectionReason: fields['Rejection Reason'] || '',
+                rejectionComment: fields['Rejection Comment'] || '',
+
+                // Metadata
+                campaign: fields['Campaign'] || '',
+                confidenceScore: fields['Confidence Score'] || 0,
+                createdAt: fields['Created At'] || airtableRecord.createdTime,
+                reviewedAt: fields['Reviewed At'] || null,
+                sentAt: fields['Sent At'] || null
+            };
+        }
+
+        /**
+         * Update a message record in Airtable
+         */
+        async function updateMessageInAirtable(recordId, updates) {
+            try {
+                const response = await fetch(`${AIRTABLE_API_URL}/${recordId}`, {
+                    method: 'PATCH',
+                    headers: AIRTABLE_HEADERS,
+                    body: JSON.stringify({
+                        fields: updates
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to update: ${response.status}`);
+                }
+
+                const updatedRecord = await response.json();
+                console.log('✓ Updated record in Airtable:', recordId);
+
+                // Update local state
+                const index = appState.messages.findIndex(m => m.id === recordId);
+                if (index !== -1) {
+                    appState.messages[index] = transformAirtableRecord(updatedRecord);
+                    applyFilters(); // Refresh filtered view
+                }
+
+                return updatedRecord;
+
+            } catch (error) {
+                console.error('Error updating message:', error);
+                showToast('Failed to update message', 'error');
+                throw error;
+            }
+        }
+
+        // ============================================
+        // UI UTILITY FUNCTIONS
+        // ============================================
+
+        function showLoading(show) {
+            const loadingEl = document.getElementById('loading');
+            if (loadingEl) {
+                loadingEl.style.display = show ? 'flex' : 'none';
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            // Create toast notification
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 toast-enter ${getToastClass(type)}`;
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            // Fade out and remove after 3 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function getToastClass(type) {
+            const classes = {
+                'success': 'bg-green-500',
+                'error': 'bg-red-500',
+                'warning': 'bg-yellow-500',
+                'info': 'bg-blue-500'
+            };
+            return classes[type] || classes['info'];
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function truncateText(text, maxLength) {
+            if (text.length <= maxLength) return text;
+            return text.substring(0, maxLength) + '...';
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        function getStatusBadgeClass(status) {
+            const classes = {
+                'pending': 'bg-yellow-100 text-yellow-800',
+                'approved': 'bg-green-100 text-green-800',
+                'denied': 'bg-red-100 text-red-800',
+                'sent': 'bg-blue-100 text-blue-800'
+            };
+            return classes[status] || classes['pending'];
+        }
+
+        function getStatusBadgeHtml(status) {
+            const badgeClass = getStatusBadgeClass(status);
+            return `<span class="px-2 py-1 text-xs rounded-full ${badgeClass}">${status}</span>`;
+        }
+
+        function updateMessageCount() {
+            const countEl = document.getElementById('message-count');
+            if (countEl) {
+                countEl.textContent = `${appState.filteredMessages.length} messages`;
+            }
+        }
+
+        function updateHeaderStats() {
+            const total = appState.messages.length;
+            const pending = appState.messages.filter(m => m.status === 'pending').length;
+            const approved = appState.messages.filter(m => m.status === 'approved').length;
+
+            document.getElementById('header-message-count').textContent = total;
+            document.getElementById('header-pending-count').textContent = pending;
+            document.getElementById('header-approved-count').textContent = approved;
+        }
+
+        // ============================================
+        // DATATABLE INITIALIZATION
+        // ============================================
+
+        let dataTable = null;
+
+        function initializeDataTable() {
+            // Destroy existing table if it exists
+            if (dataTable) {
+                dataTable.destroy();
+            }
+
+            // Prepare data for DataTables
+            const tableData = appState.filteredMessages.map(msg => [
+                escapeHtml(msg.userName),
+                escapeHtml(msg.eventName),
+                truncateText(escapeHtml(msg.message), 100),
+                getStatusBadgeHtml(msg.status),
+                msg.campaign ? escapeHtml(msg.campaign) : '-',
+                msg.confidenceScore ? `${msg.confidenceScore}%` : '-',
+                formatDate(msg.createdAt),
+                getActionButtonsHtml(msg.id, msg.status)
+            ]);
+
+            // Initialize DataTable
+            dataTable = $('#messages-table').DataTable({
+                data: tableData,
+                columns: [
+                    { title: 'User' },
+                    { title: 'Event' },
+                    { title: 'Message' },
+                    { title: 'Status', orderable: true },
+                    { title: 'Campaign' },
+                    { title: 'Confidence' },
+                    { title: 'Created', type: 'date' },
+                    { title: 'Actions', orderable: false }
+                ],
+                order: [[6, 'desc']], // Sort by created date descending
+                pageLength: 25,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+                dom: 'Bfrtip',
+                buttons: [
+                    {
+                        extend: 'colvis',
+                        text: 'Column Visibility'
+                    },
+                    {
+                        extend: 'csv',
+                        text: 'Export CSV',
+                        exportOptions: {
+                            columns: [0, 1, 2, 3, 4, 5, 6] // Exclude actions column
+                        }
+                    },
+                    {
+                        extend: 'excel',
+                        text: 'Export Excel',
+                        exportOptions: {
+                            columns: [0, 1, 2, 3, 4, 5, 6]
+                        }
+                    }
+                ],
+                language: {
+                    search: 'Search messages:',
+                    lengthMenu: 'Show _MENU_ messages per page',
+                    info: 'Showing _START_ to _END_ of _TOTAL_ messages',
+                    infoEmpty: 'No messages found',
+                    infoFiltered: '(filtered from _MAX_ total messages)'
+                },
+                drawCallback: function() {
+                    // Re-attach event listeners after table redraw
+                    attachTableEventListeners();
+                }
+            });
+
+            console.log('✓ DataTable initialized with', tableData.length, 'messages');
+        }
+
+        function getActionButtonsHtml(messageId, status) {
+            const isPending = status === 'pending';
+            const isSent = status === 'sent';
+
+            return `
+                <div class="flex items-center gap-2">
+                    <button
+                        onclick="openMessageModal('${messageId}')"
+                        class="text-blue-600 hover:text-blue-800 text-sm"
+                        title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    ${isPending ? `
+                        <button
+                            onclick="approveMessage('${messageId}')"
+                            class="text-green-600 hover:text-green-800 text-sm"
+                            title="Approve">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button
+                            onclick="openDenyModal('${messageId}')"
+                            class="text-red-600 hover:text-red-800 text-sm"
+                            title="Deny">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    ` : ''}
+                    ${isSent ? `
+                        <span class="text-xs text-gray-500">Sent</span>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function attachTableEventListeners() {
+            // Event listeners are handled via onclick in HTML for simplicity
+        }
+
+        // ============================================
+        // CARD VIEW RENDERING
+        // ============================================
+
+        function renderCardView() {
+            const cardsGrid = document.getElementById('cards-grid');
+
+            if (!cardsGrid) return;
+
+            // Clear existing cards
+            cardsGrid.innerHTML = '';
+
+            if (appState.filteredMessages.length === 0) {
+                cardsGrid.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <i class="fas fa-inbox text-gray-400 text-5xl mb-4"></i>
+                        <p class="text-gray-600 text-lg">No messages found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Create cards
+            appState.filteredMessages.forEach(message => {
+                const card = createMessageCard(message);
+                cardsGrid.appendChild(card);
+            });
+
+            console.log('✓ Rendered', appState.filteredMessages.length, 'message cards');
+        }
+
+        function createMessageCard(message) {
+            const card = document.createElement('div');
+            card.className = 'bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-lg transition-shadow duration-300 overflow-hidden cursor-pointer group';
+
+            // Confidence color
+            const confidenceColor = getConfidenceColor(message.confidenceScore);
+
+            card.innerHTML = `
+                <!-- Status Banner -->
+                <div class="h-1 ${getStatusBarColor(message.status)}"></div>
+
+                <!-- Card Content -->
+                <div class="p-6" onclick="openMessageModal('${message.id}')">
+                    <!-- Header: User & Event -->
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900 mb-1 group-hover:text-orange-600 transition-colors">
+                                <i class="fas fa-user text-sm text-gray-400 mr-2"></i>${escapeHtml(message.userName)}
+                            </h3>
+                            <p class="text-sm text-gray-600">
+                                <i class="fas fa-calendar-alt text-xs text-gray-400 mr-2"></i>${escapeHtml(message.eventName)}
+                            </p>
+                        </div>
+                        ${message.confidenceScore ? `
+                            <div class="flex flex-col items-center">
+                                <div class="w-12 h-12 rounded-full ${confidenceColor.bg} ${confidenceColor.text} flex items-center justify-center font-bold text-sm">
+                                    ${message.confidenceScore}%
+                                </div>
+                                <span class="text-xs text-gray-500 mt-1">confidence</span>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Message Preview -->
+                    <div class="mb-4">
+                        <p class="text-gray-700 leading-relaxed line-clamp-3">
+                            "${escapeHtml(message.message)}"
+                        </p>
+                    </div>
+
+                    <!-- Metadata Tags -->
+                    <div class="flex items-center gap-2 flex-wrap mb-4">
+                        ${getStatusBadgeHtml(message.status)}
+                        ${message.campaign ? `
+                            <span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                                <i class="fas fa-bullhorn mr-1"></i>${escapeHtml(message.campaign)}
+                            </span>
+                        ` : ''}
+                        <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                            <i class="fas fa-clock mr-1"></i>${formatDate(message.createdAt)}
+                        </span>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <button
+                            onclick="event.stopPropagation(); openMessageModal('${message.id}')"
+                            class="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                            <i class="fas fa-eye mr-1"></i>View Details
+                        </button>
+                        <div class="flex items-center gap-2">
+                            ${message.status === 'pending' ? `
+                                <button
+                                    onclick="event.stopPropagation(); approveMessage('${message.id}')"
+                                    class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors">
+                                    <i class="fas fa-check mr-1"></i>Approve
+                                </button>
+                                <button
+                                    onclick="event.stopPropagation(); openDenyModal('${message.id}')"
+                                    class="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors">
+                                    <i class="fas fa-times mr-1"></i>Deny
+                                </button>
+                            ` : message.status === 'sent' ? `
+                                <span class="px-3 py-1.5 bg-blue-100 text-blue-700 text-sm rounded-lg font-medium">
+                                    <i class="fas fa-paper-plane mr-1"></i>Sent
+                                </span>
+                            ` : `
+                                <span class="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-lg font-medium capitalize">
+                                    ${message.status}
+                                </span>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            return card;
+        }
+
+        function getStatusBarColor(status) {
+            const colors = {
+                'pending': 'bg-yellow-400',
+                'approved': 'bg-green-500',
+                'denied': 'bg-red-500',
+                'sent': 'bg-blue-500'
+            };
+            return colors[status] || 'bg-gray-300';
+        }
+
+        function getConfidenceColor(score) {
+            if (score >= 80) {
+                return { bg: 'bg-green-100', text: 'text-green-700' };
+            } else if (score >= 60) {
+                return { bg: 'bg-yellow-100', text: 'text-yellow-700' };
+            } else {
+                return { bg: 'bg-red-100', text: 'text-red-700' };
+            }
+        }
+
+        // ============================================
+        // VIEW MANAGEMENT
+        // ============================================
+
+        function switchView(viewType) {
+            appState.currentView = viewType;
+
+            const tableContainer = document.getElementById('table-view-container');
+            const cardContainer = document.getElementById('card-view-container');
+            const tableBtn = document.getElementById('view-toggle-table');
+            const cardBtn = document.getElementById('view-toggle-card');
+
+            if (viewType === 'table') {
+                // Show table, hide cards
+                tableContainer.classList.remove('hidden');
+                cardContainer.classList.add('hidden');
+
+                // Update button styles
+                tableBtn.className = 'px-4 py-2 text-sm font-medium bg-orange-600 text-white';
+                cardBtn.className = 'px-4 py-2 text-sm font-medium bg-white text-gray-700 hover:bg-gray-50';
+
+                // Re-initialize DataTable if needed
+                if (!dataTable) {
+                    initializeDataTable();
+                }
+            } else {
+                // Show cards, hide table
+                tableContainer.classList.add('hidden');
+                cardContainer.classList.remove('hidden');
+
+                // Update button styles
+                cardBtn.className = 'px-4 py-2 text-sm font-medium bg-orange-600 text-white';
+                tableBtn.className = 'px-4 py-2 text-sm font-medium bg-white text-gray-700 hover:bg-gray-50';
+
+                // Render cards
+                renderCardView();
+            }
+        }
+
+        // ============================================
+        // FILTER FUNCTIONS
+        // ============================================
+
+        function applyFilters() {
+            let filtered = [...appState.messages];
+
+            // Filter by status
+            if (appState.filters.status !== 'all') {
+                filtered = filtered.filter(m => m.status === appState.filters.status);
+            }
+
+            // Filter by campaign
+            if (appState.filters.campaign !== 'all') {
+                filtered = filtered.filter(m => m.campaign === appState.filters.campaign);
+            }
+
+            // Filter by search query
+            if (appState.filters.search) {
+                const searchLower = appState.filters.search.toLowerCase();
+                filtered = filtered.filter(m =>
+                    m.message.toLowerCase().includes(searchLower) ||
+                    m.userName.toLowerCase().includes(searchLower) ||
+                    m.eventName.toLowerCase().includes(searchLower)
+                );
+            }
+
+            appState.filteredMessages = filtered;
+
+            // Re-render current view
+            if (appState.currentView === 'table') {
+                initializeDataTable();
+            } else {
+                renderCardView();
+            }
+
+            updateMessageCount();
+        }
+
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+
+        function initializeEventListeners() {
+            // Status filter
+            const statusFilter = document.getElementById('filter-status');
+            if (statusFilter) {
+                statusFilter.addEventListener('change', (e) => {
+                    appState.filters.status = e.target.value;
+                    applyFilters();
+                });
+            }
+
+            // Campaign filter
+            const campaignFilter = document.getElementById('filter-campaign');
+            if (campaignFilter) {
+                campaignFilter.addEventListener('change', (e) => {
+                    appState.filters.campaign = e.target.value;
+                    applyFilters();
+                });
+            }
+
+            // Search input with debounce
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) {
+                let debounceTimer;
+                searchInput.addEventListener('input', (e) => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        appState.filters.search = e.target.value;
+                        applyFilters();
+                    }, 300);
+                });
+            }
+        }
+
+        // ============================================
+        // APPROVAL WORKFLOW
+        // ============================================
+
+        async function approveMessage(messageId) {
+            const message = appState.messages.find(m => m.id === messageId);
+            if (!message) {
+                showToast('Message not found', 'error');
+                return;
+            }
+
+            if (!confirm(`Approve message to ${message.userName}?`)) {
+                return;
+            }
+
+            try {
+                // Update in Airtable
+                await updateMessageInAirtable(messageId, {
+                    'Status': 'approved',
+                    'Reviewed At': new Date().toISOString()
+                });
+
+                showToast('Message approved successfully', 'success');
+
+                // Refresh data and view
+                await fetchMessagesFromAirtable();
+                if (appState.currentView === 'table') {
+                    initializeDataTable();
+                } else {
+                    renderCardView();
+                }
+                updateHeaderStats();
+
+            } catch (error) {
+                console.error('Error approving message:', error);
+                showToast('Failed to approve message', 'error');
+            }
+        }
+
+        async function denyMessage(messageId, reason, comment) {
+            try {
+                // Update in Airtable
+                await updateMessageInAirtable(messageId, {
+                    'Status': 'denied',
+                    'Rejection Reason': reason,
+                    'Rejection Comment': comment || '',
+                    'Reviewed At': new Date().toISOString()
+                });
+
+                showToast('Message denied', 'success');
+
+                // Close deny modal
+                closeDenyModal();
+
+                // Refresh data and view
+                await fetchMessagesFromAirtable();
+                if (appState.currentView === 'table') {
+                    initializeDataTable();
+                } else {
+                    renderCardView();
+                }
+                updateHeaderStats();
+
+            } catch (error) {
+                console.error('Error denying message:', error);
+                showToast('Failed to deny message', 'error');
+            }
+        }
+
+        // ============================================
+        // MESSAGE DETAIL MODAL
+        // ============================================
+
+        function openMessageModal(messageId) {
+            const message = appState.messages.find(m => m.id === messageId);
+            if (!message) {
+                showToast('Message not found', 'error');
+                return;
+            }
+
+            appState.currentMessage = message;
+
+            // Populate message
+            document.getElementById('modal-message-display').textContent = message.message;
+
+            // Reset edit mode (hide edit, show display)
+            const displayEl = document.getElementById('modal-message-display');
+            const editContainer = document.getElementById('modal-message-edit-container');
+            const editBtn = document.getElementById('edit-message-btn');
+
+            displayEl.classList.remove('hidden');
+            editContainer.classList.add('hidden');
+            editBtn.classList.remove('hidden');
+
+            // User info
+            document.getElementById('modal-user-info').innerHTML = `
+                <p><strong>Name:</strong> ${escapeHtml(message.userName)}</p>
+                <p><strong>ID:</strong> <code class="text-xs bg-gray-200 px-1 rounded">${escapeHtml(message.userId)}</code></p>
+            `;
+
+            // Event info
+            document.getElementById('modal-event-info').innerHTML = `
+                <p><strong>Name:</strong> ${escapeHtml(message.eventName)}</p>
+                <p><strong>ID:</strong> <code class="text-xs bg-gray-200 px-1 rounded">${escapeHtml(message.eventId)}</code></p>
+            `;
+
+            // User summary (show if exists)
+            const userSummarySection = document.getElementById('modal-user-summary-section');
+            if (message.userSummary) {
+                document.getElementById('modal-user-summary').textContent = message.userSummary;
+                userSummarySection.classList.remove('hidden');
+            } else {
+                userSummarySection.classList.add('hidden');
+            }
+
+            // Event summary (show if exists)
+            const eventSummarySection = document.getElementById('modal-event-summary-section');
+            if (message.eventSummary) {
+                document.getElementById('modal-event-summary').textContent = message.eventSummary;
+                eventSummarySection.classList.remove('hidden');
+            } else {
+                eventSummarySection.classList.add('hidden');
+            }
+
+            // Reasoning (show if exists)
+            const reasoningSection = document.getElementById('modal-reasoning-section');
+            if (message.reasoning) {
+                document.getElementById('modal-reasoning').textContent = message.reasoning;
+                reasoningSection.classList.remove('hidden');
+            } else {
+                reasoningSection.classList.add('hidden');
+            }
+
+            // Metadata
+            document.getElementById('modal-status').innerHTML = getStatusBadgeHtml(message.status);
+            document.getElementById('modal-campaign').textContent = message.campaign || '-';
+            document.getElementById('modal-confidence').textContent = message.confidenceScore ? `${message.confidenceScore}%` : '-';
+            document.getElementById('modal-created').textContent = formatDate(message.createdAt);
+
+            // Action buttons based on status
+            const actionsHtml = getModalActionButtons(message);
+            document.getElementById('modal-actions').innerHTML = actionsHtml;
+
+            // Show modal
+            document.getElementById('message-modal').classList.remove('hidden');
+        }
+
+        function closeMessageModal() {
+            document.getElementById('message-modal').classList.add('hidden');
+            appState.currentMessage = null;
+        }
+
+        function getModalActionButtons(message) {
+            if (message.status === 'pending') {
+                return `
+                    <button
+                        onclick="approveMessage('${message.id}')"
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                        <i class="fas fa-check mr-2"></i>Approve
+                    </button>
+                    <button
+                        onclick="openDenyModal('${message.id}')"
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        <i class="fas fa-times mr-2"></i>Deny
+                    </button>
+                `;
+            } else if (message.status === 'approved') {
+                return `
+                    <span class="text-green-600 font-medium">
+                        <i class="fas fa-check-circle mr-2"></i>Approved
+                    </span>
+                `;
+            } else if (message.status === 'denied') {
+                return `
+                    <span class="text-red-600 font-medium">
+                        <i class="fas fa-times-circle mr-2"></i>Denied
+                    </span>
+                `;
+            } else if (message.status === 'sent') {
+                return `
+                    <span class="text-blue-600 font-medium">
+                        <i class="fas fa-paper-plane mr-2"></i>Sent
+                    </span>
+                `;
+            }
+            return '';
+        }
+
+        // ============================================
+        // MESSAGE EDITING
+        // ============================================
+
+        function toggleMessageEdit() {
+            const displayEl = document.getElementById('modal-message-display');
+            const editContainer = document.getElementById('modal-message-edit-container');
+            const editTextarea = document.getElementById('modal-message-edit');
+            const editBtn = document.getElementById('edit-message-btn');
+
+            if (editContainer.classList.contains('hidden')) {
+                // Enter edit mode
+                editTextarea.value = appState.currentMessage.message;
+                displayEl.classList.add('hidden');
+                editContainer.classList.remove('hidden');
+                editBtn.classList.add('hidden');
+                editTextarea.focus();
+            }
+        }
+
+        function cancelMessageEdit() {
+            const displayEl = document.getElementById('modal-message-display');
+            const editContainer = document.getElementById('modal-message-edit-container');
+            const editBtn = document.getElementById('edit-message-btn');
+
+            displayEl.classList.remove('hidden');
+            editContainer.classList.add('hidden');
+            editBtn.classList.remove('hidden');
+        }
+
+        async function saveMessageEdit() {
+            const editTextarea = document.getElementById('modal-message-edit');
+            const newMessage = editTextarea.value.trim();
+
+            if (!newMessage) {
+                showToast('Message cannot be empty', 'warning');
+                return;
+            }
+
+            if (newMessage === appState.currentMessage.message) {
+                showToast('No changes made', 'info');
+                cancelMessageEdit();
+                return;
+            }
+
+            try {
+                // Update in Airtable
+                await updateMessageInAirtable(appState.currentMessage.id, {
+                    'Message': newMessage
+                });
+
+                // Update local state
+                appState.currentMessage.message = newMessage;
+
+                // Update display
+                document.getElementById('modal-message-display').textContent = newMessage;
+
+                // Exit edit mode
+                cancelMessageEdit();
+
+                showToast('Message updated successfully', 'success');
+
+                // Refresh views
+                await fetchMessagesFromAirtable();
+                if (appState.currentView === 'table') {
+                    initializeDataTable();
+                } else {
+                    renderCardView();
+                }
+
+            } catch (error) {
+                console.error('Error saving message edit:', error);
+                showToast('Failed to save message', 'error');
+            }
+        }
+
+        // ============================================
+        // DENY MODAL
+        // ============================================
+
+        let denyMessageId = null;
+
+        function openDenyModal(messageId) {
+            denyMessageId = messageId;
+            document.getElementById('deny-reason').value = '';
+            document.getElementById('deny-comment').value = '';
+            document.getElementById('deny-modal').classList.remove('hidden');
+        }
+
+        function closeDenyModal() {
+            document.getElementById('deny-modal').classList.add('hidden');
+            denyMessageId = null;
+        }
+
+        async function submitDeny() {
+            const reason = document.getElementById('deny-reason').value;
+            const comment = document.getElementById('deny-comment').value;
+
+            if (!reason) {
+                showToast('Please select a reason for denial', 'warning');
+                return;
+            }
+
+            if (!denyMessageId) {
+                showToast('No message selected', 'error');
+                return;
+            }
+
+            await denyMessage(denyMessageId, reason, comment);
+        }
+
+        // Close modals on ESC key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeMessageModal();
+                closeDenyModal();
+            }
+        });
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+
+        async function init() {
+            console.log('Initializing Messages Airtable App...');
+
+            // Set up event listeners
+            initializeEventListeners();
+
+            // Load messages from Airtable
+            await fetchMessagesFromAirtable();
+
+            // Initialize DataTable
+            initializeDataTable();
+            updateMessageCount();
+            updateHeaderStats();
+
+            console.log('✓ App initialized successfully');
+        }
+
+        // Run on page load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
