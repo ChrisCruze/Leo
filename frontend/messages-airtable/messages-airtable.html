@@ -462,6 +462,12 @@
 
         const AIRTABLE_API_URL = `https://api.airtable.com/v0/${AIRTABLE_CONFIG.baseId}/${AIRTABLE_CONFIG.tableId}`;
 
+        // Notification API (mirrors messages-review)
+        const NOTIFICATION_API_URL = 'https://api.cuculi.com/notification';
+        const NOTIFICATION_AUTH_TOKEN = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhdXRoVXNlcklkIjoiNWQxNGEyODg5YzQyOWU0MGI2MDM5ZWJhIn0.TEVZLJlMNZlDkZ6L93y62WrTRdEQo0bEWSTRgxotDxg';
+        const LEO_USER_ID = '5d14a2889c429e40b6039eba';
+        const SENDER_IMAGE_URL = 'https://storage.cuculi.com/production/961e91f8-7e5d-4672-9791-49a5f1ad7da8image.jpg';
+
         // Headers for Airtable API requests
         const AIRTABLE_HEADERS = {
             'Authorization': `Bearer ${AIRTABLE_CONFIG.apiKey}`,
@@ -628,6 +634,86 @@
                 showToast('Failed to update message', 'error');
                 throw error;
             }
+        }
+
+        // ============================================
+        // NOTIFICATION API FUNCTIONS
+        // ============================================
+
+        async function sendSMS(messageText) {
+            if (!messageText) throw new Error("Message text is required");
+
+            const payload = {
+                userId: '631b60819007c60c89083db9', // matches messages-review hardcoded recipient
+                type: 'chat',
+                event: 'NEW_MESSAGE',
+                configType: 'communication',
+                targetEntityType: 'user',
+                channels: ['sms'],
+                data: {
+                    detail: 'SMS Notification',
+                    userId: '631b60819007c60c89083db9',
+                    eventId: '64ed0c0e87a7e6765a212c18',
+                    sender: { id: '5d14a2889c429e40b6039eba' },
+                    timestamp: new Date().toISOString()
+                },
+                text: messageText,
+                createdBy: '5d14a2889c429e40b6039eba'
+            };
+
+            const response = await fetch(NOTIFICATION_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${NOTIFICATION_AUTH_TOKEN}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(`SMS API Error ${response.status}: ${JSON.stringify(data)}`);
+            }
+            return data;
+        }
+
+        async function sendNotification(userId, messageText, eventId = null) {
+            if (!userId) throw new Error("User ID is required for notification");
+            if (!messageText) throw new Error("Message text is required for notification");
+
+            const payload = {
+                userId: userId,
+                type: 'chat',
+                event: 'NEW_MESSAGE',
+                configType: 'communication',
+                targetEntityType: 'user',
+                channels: ['sms'],
+                data: {
+                    detail: 'notification detail',
+                    senderImage: SENDER_IMAGE_URL,
+                    userId: userId,
+                    eventId: eventId || null,
+                    sender: { id: LEO_USER_ID },
+                    timestamp: new Date().toISOString()
+                },
+                text: messageText,
+                createdBy: LEO_USER_ID
+            };
+
+            const response = await fetch(NOTIFICATION_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${NOTIFICATION_AUTH_TOKEN}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(`Notification API Error ${response.status}: ${JSON.stringify(data)}`);
+            }
+            return data;
         }
 
         // ============================================
@@ -799,6 +885,7 @@
 
         function getActionButtonsHtml(messageId, status) {
             const isPending = status === 'pending';
+            const isApproved = status === 'approved';
             const isSent = status === 'sent';
 
             return `
@@ -821,6 +908,14 @@
                             class="text-red-600 hover:text-red-800 text-sm"
                             title="Deny">
                             <i class="fas fa-times"></i>
+                        </button>
+                    ` : ''}
+                    ${(isPending || isApproved) ? `
+                        <button
+                            onclick="sendMessage('${messageId}')"
+                            class="text-orange-600 hover:text-orange-700 text-sm"
+                            title="Send">
+                            <i class="fas fa-paper-plane"></i>
                         </button>
                     ` : ''}
                     ${isSent ? `
@@ -1128,6 +1223,82 @@
             }
         }
 
+        async function sendMessage(messageId) {
+            const message = appState.messages.find(m => m.id === messageId);
+            if (!message) {
+                showToast('Message not found', 'error');
+                return;
+            }
+
+            const messageText = message.message;
+            const userId = message.userId;
+            const eventId = message.eventId || null;
+
+            if (!userId) {
+                showToast('User ID is missing. Cannot send message.', 'error');
+                return;
+            }
+
+            if (!messageText) {
+                showToast('Message text is missing. Cannot send message.', 'error');
+                return;
+            }
+
+            if (!confirm(`Send SMS to ${message.userName || 'user'}?\n\nMessage: ${messageText.substring(0, 100)}...`)) {
+                return;
+            }
+
+            const sendBtn = document.getElementById('modal-send-btn');
+            const originalHTML = sendBtn ? sendBtn.innerHTML : '';
+            if (sendBtn) {
+                sendBtn.disabled = true;
+                sendBtn.classList.add('opacity-75', 'cursor-not-allowed');
+                sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+            }
+
+            let sendSucceeded = false;
+            try {
+                await sendNotification(userId, messageText, eventId);
+                try {
+                    await sendSMS(messageText);
+                } catch (smsError) {
+                    console.error('Error sending SMS notification:', smsError);
+                }
+
+                await updateMessageInAirtable(messageId, {
+                    'status': 'sent',
+                    'sent_at': new Date().toISOString()
+                });
+
+                sendSucceeded = true;
+                showToast('Message sent successfully', 'success');
+
+                // Refresh data and UI
+                await fetchMessagesFromAirtable();
+                if (appState.currentView === 'table') {
+                    initializeDataTable();
+                } else {
+                    renderCardView();
+                }
+                updateHeaderStats();
+                closeMessageModal();
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showToast('Failed to send message', 'error');
+            } finally {
+                if (sendBtn) {
+                    if (sendSucceeded) {
+                        sendBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Sent';
+                        sendBtn.classList.add('opacity-75');
+                    } else {
+                        sendBtn.disabled = false;
+                        sendBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                        sendBtn.innerHTML = originalHTML || 'Send';
+                    }
+                }
+            }
+        }
+
         async function denyMessage(messageId, reason, comment) {
             try {
                 // Update in Airtable
@@ -1268,9 +1439,21 @@
                         class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
                         <i class="fas fa-times mr-2"></i>Deny
                     </button>
+                    <button
+                        id="modal-send-btn"
+                        onclick="sendMessage('${message.id}')"
+                        class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+                        <i class="fas fa-paper-plane mr-2"></i>Send
+                    </button>
                 `;
             } else if (message.status === 'approved') {
                 return `
+                    <button
+                        id="modal-send-btn"
+                        onclick="sendMessage('${message.id}')"
+                        class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+                        <i class="fas fa-paper-plane mr-2"></i>Send
+                    </button>
                     <span class="text-green-600 font-medium">
                         <i class="fas fa-check-circle mr-2"></i>Approved
                     </span>
