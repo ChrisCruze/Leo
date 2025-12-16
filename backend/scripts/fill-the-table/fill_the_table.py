@@ -51,6 +51,7 @@ sys.path.insert(0, root_dir)
 from helpers.report_creation.report_generator import generate_report
 from helpers.firebase_manage.firebase_manager import FirebaseManager
 from helpers.mongodb_pull import MongoDBPull
+from utils.ai_generate import ai_generate_meta_tag_parse
 
 # ============================================================================
 # LOGGING SETUP (matching leo_automation.py)
@@ -147,7 +148,6 @@ class FillTheTableCampaign:
         # Initialize connections
         self._init_mongodb()
         self._init_firebase()
-        self._init_anthropic()
         
         # Initialize Firebase Manager (with local testing support)
         save_local = os.getenv('SAVE_LOCAL', 'false').lower() == 'true'
@@ -216,18 +216,18 @@ class FillTheTableCampaign:
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON response from Firebase: {str(e)}")
 
-    def _init_anthropic(self):
-        """Initialize Anthropic client for Cuculi MCP"""
-        try:
-            api_key = os.getenv('ANTHROPIC_API_KEY')
-            if not api_key:
-                raise ValueError("ANTHROPIC_API_KEY not set")
-
-            self.anthropic_client = Anthropic(api_key=api_key)
-            self.logger.info("Anthropic client initialized")
-        except Exception as e:
-            self.logger.error(f"Failed to initialize Anthropic client: {e}")
-            raise
+    # def _init_anthropic(self):
+    #     """Initialize Anthropic client for Cuculi MCP"""
+    #     try:
+    #         api_key = os.getenv('ANTHROPIC_API_KEY')
+    #         if not api_key:
+    #             raise ValueError("ANTHROPIC_API_KEY not set")
+    #
+    #         self.anthropic_client = Anthropic(api_key=api_key)
+    #         self.logger.info("Anthropic client initialized")
+    #     except Exception as e:
+    #         self.logger.error(f"Failed to initialize Anthropic client: {e}")
+    #         raise
 
     def _convert_objectid(self, obj: Any) -> Any:
         """Helper function to convert ObjectId to string for JSON serialization (matching leo_automation.py)"""
@@ -600,44 +600,26 @@ Return only the JSON array, no additional text."""
         try:
             self.logger.info("Requesting matches from Claude...")
 
-            response = self.anthropic_client.messages.create(
-                model="claude-sonnet-4-20250514",  # Matching leo_automation.py model
-                max_tokens=4096,  # Matching leo_automation.py
-                temperature=0.9,  # Higher creativity for hooks/curiosity
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
+            # Use ai_generate utility instead of direct API call
+            matches = ai_generate_meta_tag_parse(
+                prompt=prompt,
+                model="claude-sonnet-4-20250514",
+                max_tokens=4096,
+                temperature=0.9
             )
 
-            # Extract the response text
-            response_text = response.content[0].text if response.content else ""
-            self.logger.debug(f"Claude response: {response_text[:500]}...")
-
-            # Parse JSON response using regex (matching leo_automation.py)
-            try:
-                json_match = re.search(r'\[[\s\S]*\]', response_text)
-                if json_match:
-                    matches = json.loads(json_match.group(0))
+            # Ensure matches is a list
+            if not isinstance(matches, list):
+                if isinstance(matches, dict) and 'matches' in matches:
+                    matches = matches['matches']
                 else:
-                    matches = json.loads(response_text)
-                
-                # Ensure matches is a list
-                if not isinstance(matches, list):
-                    if isinstance(matches, dict) and 'matches' in matches:
-                        matches = matches['matches']
-                    else:
-                        matches = [matches] if matches else []
-                
-                self.logger.info(f"Received {len(matches)} matches from Claude")
-                return matches
-            except json.JSONDecodeError as e:
-                self.logger.error(f"Failed to parse Claude's response: {e}")
-                self.logger.error(f"Raw response: {response_text[:500]}")
-                return []
+                    matches = [matches] if matches else []
+
+            self.logger.info(f"Received {len(matches)} matches from Claude")
+            return matches
 
         except Exception as e:
-            self.logger.error(f"Error getting matches from AI: {e}")
-            self.stats['errors'].append(f"Error getting AI matches: {str(e)}")
+            self.logger.error(f"Failed to get matches: {e}")
             return []
 
     def generate_message_for_user(self, user: Dict[str, Any], event: Dict[str, Any], match_reasoning: str) -> Dict[str, Any]:
@@ -709,62 +691,34 @@ Return a JSON object:
             if not self.message_generation_prompt_template:
                 self.message_generation_prompt_template = prompt
 
-            response = self.anthropic_client.messages.create(
-                model="claude-sonnet-4-20250514",  # Matching leo_automation.py model
-                max_tokens=4096,  # Matching leo_automation.py
-                temperature=0.9,  # Higher creativity per request
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
+            # Use ai_generate utility instead of direct API call
+            message_data = ai_generate_meta_tag_parse(
+                prompt=prompt,
+                model="claude-sonnet-4-20250514",
+                max_tokens=4096,
+                temperature=0.9
             )
 
-            response_text = response.content[0].text if response.content else ""
-            
-            # Parse JSON response using regex (matching leo_automation.py)
-            try:
-                json_match = re.search(r'\{[\s\S]*\}', response_text)
-                if json_match:
-                    message_data = json.loads(json_match.group(0))
+            message_text = message_data.get('message_text', '').strip()
+            if not message_text:
+                raise ValueError("No message_text in response")
+
+            # Ensure the message ends with the event link
+            if not message_text.endswith(event_link):
+                if event_link not in message_text:
+                    message_text = f"{message_text} {event_link}"
                 else:
-                    message_data = json.loads(response_text)
-                
-                message_text = message_data.get('message_text', '').strip()
-                if not message_text:
-                    # Fallback if parsing fails
-                    raise ValueError("No message_text in response")
-                
-                # Ensure the message ends with the event link (in case AI didn't include it)
-                if not message_text.endswith(event_link):
-                    # Check if link is already in the message somewhere
-                    if event_link not in message_text:
-                        message_text = f"{message_text} {event_link}"
-                    else:
-                        # Link is in message but not at end - move it to end
-                        message_text = message_text.replace(event_link, '').strip()
-                        message_text = f"{message_text} {event_link}"
-                
-                self.logger.info(f"Generated message for user {user.get('_id')}: {message_text[:50]}...")
-                self.stats['messages_generated'] += 1
-                
-                return {
-                    'message_text': message_text,
-                    'personalization_notes': message_data.get('personalization_notes', ''),
-                    'character_count': len(message_text)  # Use actual length including link
-                }
-                
-            except (json.JSONDecodeError, ValueError) as e:
-                self.logger.error(f"Failed to parse Claude's response: {e}")
-                self.logger.error(f"Raw response: {response_text[:500]}")
-                # Fallback message with event link
-                event_title = event.get('name', 'an upcoming event')
-                event_id = str(event.get('_id', ''))
-                event_link = f"https://cucu.li/bookings/{event_id}"
-                fallback = f"Hi {first_name}! We think you'd enjoy {event_title}. Join us? {event_link}"
-                return {
-                    'message_text': fallback,
-                    'personalization_notes': 'Fallback message',
-                    'character_count': len(fallback)
-                }
+                    message_text = message_text.replace(event_link, '').strip()
+                    message_text = f"{message_text} {event_link}"
+
+            self.logger.info(f"Generated message for user {user.get('_id')}: {message_text[:50]}...")
+            self.stats['messages_generated'] += 1
+
+            return {
+                'message_text': message_text,
+                'personalization_notes': message_data.get('personalization_notes', ''),
+                'character_count': len(message_text)
+            }
 
         except Exception as e:
             self.logger.error(f"Error generating message: {e}")

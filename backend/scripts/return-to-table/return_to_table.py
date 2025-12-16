@@ -52,6 +52,7 @@ sys.path.insert(0, root_dir)
 from helpers.report_creation.report_generator import generate_report
 from helpers.firebase_manage.firebase_manager import FirebaseManager
 from helpers.mongodb_pull import MongoDBPull
+from utils.ai_generate import ai_generate_meta_tag_parse
 
 # ============================================================================
 # LOGGING SETUP (matching leo_automation.py)
@@ -148,7 +149,6 @@ class ReturnToTableCampaign:
         # Initialize connections
         self._init_mongodb()
         self._init_firebase()
-        self._init_anthropic()
         
         # Initialize Firebase Manager (with local testing support)
         save_local = os.getenv('SAVE_LOCAL', 'false').lower() == 'true'
@@ -217,18 +217,18 @@ class ReturnToTableCampaign:
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON response from Firebase: {str(e)}")
 
-    def _init_anthropic(self):
-        """Initialize Anthropic client for Cuculi MCP"""
-        try:
-            api_key = os.getenv('ANTHROPIC_API_KEY')
-            if not api_key:
-                raise ValueError("ANTHROPIC_API_KEY not set")
-
-            self.anthropic_client = Anthropic(api_key=api_key)
-            self.logger.info("Anthropic client initialized")
-        except Exception as e:
-            self.logger.error(f"Failed to initialize Anthropic client: {e}")
-            raise
+    # def _init_anthropic(self):
+    #     """Initialize Anthropic client for Cuculi MCP"""
+    #     try:
+    #         api_key = os.getenv('ANTHROPIC_API_KEY')
+    #         if not api_key:
+    #             raise ValueError("ANTHROPIC_API_KEY not set")
+    #
+    #         self.anthropic_client = Anthropic(api_key=api_key)
+    #         self.logger.info("Anthropic client initialized")
+    #     except Exception as e:
+    #         self.logger.error(f"Failed to initialize Anthropic client: {e}")
+    #         raise
 
     def _convert_objectid(self, obj: Any) -> Any:
         """Helper function to convert ObjectId to string for JSON serialization (matching leo_automation.py)"""
@@ -491,81 +491,63 @@ Return only the JSON object, no additional text."""
             # Create individual prompt
             prompt = self.create_individual_matching_prompt(user, events)
 
-            response = self.anthropic_client.messages.create(
-                model="claude-sonnet-4-20250514",  # Matching leo_automation.py model
-                max_tokens=4096,  # Matching leo_automation.py
-                temperature=0.7,  # Lower temperature for more consistent matching
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
+            # Use ai_generate utility instead of direct API call
+            match = ai_generate_meta_tag_parse(
+                prompt=prompt,
+                model="claude-sonnet-4-20250514",
+                max_tokens=4096,
+                temperature=0.7
             )
 
-            # Extract the response text
-            response_text = response.content[0].text if response.content else ""
-            self.logger.debug(f"Claude response: {response_text[:500]}...")
+            # Ensure match is a dict (not list)
+            if isinstance(match, list) and len(match) > 0:
+                match = match[0]
 
-            # Parse JSON response using regex (matching leo_automation.py)
-            try:
-                json_match = re.search(r'\{[\s\S]*\}', response_text)
-                if json_match:
-                    match = json.loads(json_match.group(0))
-                else:
-                    match = json.loads(response_text)
-                
-                # Ensure match is a dict (not list)
-                if isinstance(match, list) and len(match) > 0:
-                    match = match[0]
-                
-                if not isinstance(match, dict):
-                    self.logger.error(f"Invalid match format: {type(match)}")
-                    return None
-                
-                # Find the actual event object
-                event_id = match.get('event_id', '')
-                event_name = match.get('event_name', '')
-                
-                # Try to find by ID first
-                matched_event = next((e for e in events if str(e.get('_id', '')) == event_id), None)
-                
-                # Fallback to name if ID lookup fails
-                if not matched_event and event_name:
-                    matched_event = next((e for e in events if e.get('name', '') == event_name), None)
-                    if matched_event:
-                        event_id = str(matched_event.get('_id', ''))
-                        self.logger.info(f"  Matched by name instead of ID: {event_name}")
-                
-                if not matched_event:
-                    self.logger.warning(f"Could not find event with ID: {event_id} or name: {event_name}")
-                    return None
-                
-                # Build full match record
-                first_name = user.get('firstName', '')
-                last_name = user.get('lastName', '')
-                user_name = f"{first_name} {last_name}".strip()
-                
-                match_record = {
-                    'user_name': user_name,
-                    'event_name': match.get('event_name', ''),
-                    'user_id': str(user.get('_id', '')),
-                    'event_id': event_id,
-                    'confidence_percentage': match.get('confidence_percentage', 0),
-                    'reasoning': match.get('reasoning', ''),
-                    'match_purpose': match.get('match_purpose', 'reactivate_dormant_user'),
-                    'strategy': 'reactivate_dormant_user',
-                    'matched_at': datetime.now(timezone.utc).isoformat(),
-                    'campaign': 'return-to-table',
-                    'updatedAt': datetime.now(timezone.utc).isoformat(),
-                    'user': user,  # Include full user object
-                    'event': matched_event  # Include full event object
-                }
-                
-                self.logger.info(f"  ✓ Found match: {user_name} → {match_record['event_name']} (confidence: {match_record['confidence_percentage']}%)")
-                return match_record
-                
-            except json.JSONDecodeError as e:
-                self.logger.error(f"Failed to parse Claude's response: {e}")
-                self.logger.error(f"Raw response: {response_text[:500]}")
+            if not isinstance(match, dict):
+                self.logger.error(f"Invalid match format: {type(match)}")
                 return None
+
+            # Find the actual event object
+            event_id = match.get('event_id', '')
+            event_name = match.get('event_name', '')
+
+            # Try to find by ID first
+            matched_event = next((e for e in events if str(e.get('_id', '')) == event_id), None)
+
+            # Fallback to name if ID lookup fails
+            if not matched_event and event_name:
+                matched_event = next((e for e in events if e.get('name', '') == event_name), None)
+                if matched_event:
+                    event_id = str(matched_event.get('_id', ''))
+                    self.logger.info(f"  Matched by name instead of ID: {event_name}")
+
+            if not matched_event:
+                self.logger.warning(f"Could not find event with ID: {event_id} or name: {event_name}")
+                return None
+
+            # Build full match record
+            first_name = user.get('firstName', '')
+            last_name = user.get('lastName', '')
+            user_name = f"{first_name} {last_name}".strip()
+
+            match_record = {
+                'user_name': user_name,
+                'event_name': match.get('event_name', ''),
+                'user_id': str(user.get('_id', '')),
+                'event_id': event_id,
+                'confidence_percentage': match.get('confidence_percentage', 0),
+                'reasoning': match.get('reasoning', ''),
+                'match_purpose': match.get('match_purpose', 'reactivate_dormant_user'),
+                'strategy': 'reactivate_dormant_user',
+                'matched_at': datetime.now(timezone.utc).isoformat(),
+                'campaign': 'return-to-table',
+                'updatedAt': datetime.now(timezone.utc).isoformat(),
+                'user': user,
+                'event': matched_event
+            }
+
+            self.logger.info(f"  ✓ Found match: {user_name} → {match_record['event_name']} (confidence: {match_record['confidence_percentage']}%)")
+            return match_record
 
         except Exception as e:
             self.logger.error(f"Error getting match from AI: {e}")
@@ -641,62 +623,34 @@ Return a JSON object:
             if not self.message_generation_prompt_template:
                 self.message_generation_prompt_template = prompt
 
-            response = self.anthropic_client.messages.create(
-                model="claude-sonnet-4-20250514",  # Matching leo_automation.py model
-                max_tokens=4096,  # Matching leo_automation.py
-                temperature=0.9,  # Higher creativity per request
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
+            # Use ai_generate utility instead of direct API call
+            message_data = ai_generate_meta_tag_parse(
+                prompt=prompt,
+                model="claude-sonnet-4-20250514",
+                max_tokens=4096,
+                temperature=0.9
             )
 
-            response_text = response.content[0].text if response.content else ""
-            
-            # Parse JSON response using regex (matching leo_automation.py)
-            try:
-                json_match = re.search(r'\{[\s\S]*\}', response_text)
-                if json_match:
-                    message_data = json.loads(json_match.group(0))
+            message_text = message_data.get('message_text', '').strip()
+            if not message_text:
+                raise ValueError("No message_text in response")
+
+            # Ensure the message ends with the event link
+            if not message_text.endswith(event_link):
+                if event_link not in message_text:
+                    message_text = f"{message_text} {event_link}"
                 else:
-                    message_data = json.loads(response_text)
-                
-                message_text = message_data.get('message_text', '').strip()
-                if not message_text:
-                    # Fallback if parsing fails
-                    raise ValueError("No message_text in response")
-                
-                # Ensure the message ends with the event link (in case AI didn't include it)
-                if not message_text.endswith(event_link):
-                    # Check if link is already in the message somewhere
-                    if event_link not in message_text:
-                        message_text = f"{message_text} {event_link}"
-                    else:
-                        # Link is in message but not at end - move it to end
-                        message_text = message_text.replace(event_link, '').strip()
-                        message_text = f"{message_text} {event_link}"
-                
-                self.logger.info(f"Generated message for user {user.get('_id')}: {message_text[:50]}...")
-                self.stats['messages_generated'] += 1
-                
-                return {
-                    'message_text': message_text,
-                    'personalization_notes': message_data.get('personalization_notes', ''),
-                    'character_count': len(message_text)  # Use actual length including link
-                }
-                
-            except (json.JSONDecodeError, ValueError) as e:
-                self.logger.error(f"Failed to parse Claude's response: {e}")
-                self.logger.error(f"Raw response: {response_text[:500]}")
-                # Fallback message with event link
-                event_title = event.get('name', 'an upcoming event')
-                event_id = str(event.get('_id', ''))
-                event_link = f"https://cucu.li/bookings/{event_id}"
-                fallback = f"Hi {first_name}! 👋 We miss you! Check out {event_title}. Welcome back! Tap to RSVP: {event_link}"
-                return {
-                    'message_text': fallback,
-                    'personalization_notes': 'Fallback message',
-                    'character_count': len(fallback)
-                }
+                    message_text = message_text.replace(event_link, '').strip()
+                    message_text = f"{message_text} {event_link}"
+
+            self.logger.info(f"Generated message for user {user.get('_id')}: {message_text[:50]}...")
+            self.stats['messages_generated'] += 1
+
+            return {
+                'message_text': message_text,
+                'personalization_notes': message_data.get('personalization_notes', ''),
+                'character_count': len(message_text)
+            }
 
         except Exception as e:
             self.logger.error(f"Error generating message: {e}")
