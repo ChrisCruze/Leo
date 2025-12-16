@@ -137,7 +137,7 @@ self.airtable_sync.save_message(message_record)
 **Airtable Connection Details (from airtable_sync README):**
 - **Base ID:** `appaquqFN7vvvZGcq`
 - **Messages Table ID:** `tbljma5S4NhUn1OYl`
-- **API Key:** Store in environment variable `AIRTABLE_API_KEY`
+- **API Key:** Hardcode in script: `"patdMoOPya9xAXGLG.3a26ab9163b441fa24a5e1edc3d775c4608e447dd7c0ffa50d6de697d121c022"`
 
 **Message Field Mapping:**
 ```python
@@ -855,9 +855,9 @@ MONGODB_URI=mongodb+srv://...
 FIREBASE_DATABASE_URL=https://cuculi-2c473.firebaseio.com
 FIREBASE_BASE_PATH=Leo2
 
-# Airtable
-AIRTABLE_API_KEY=patdMoOPya9xAXGLG...
-AIRTABLE_BASE_ID=appaquqFN7vvvZGcq
+# Airtable (Note: API key should be hardcoded in script, not environment variable)
+# AIRTABLE_API_KEY=patdMoOPya9xAXGLG.3a26ab9163b441fa24a5e1edc3d775c4608e447dd7c0ffa50d6de697d121c022
+# AIRTABLE_BASE_ID=appaquqFN7vvvZGcq
 
 # Anthropic
 ANTHROPIC_API_KEY=sk-ant-...

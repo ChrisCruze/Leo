@@ -17,6 +17,27 @@ This document outlines the implementation plan for `airtable_sync.py`, a script 
 
 ## Implementation Plan
 
+### Phase 0: Research and Preparation
+
+#### 0.1 Review pyairtable Documentation and Best Practices
+
+**IMPORTANT:** Before implementing the airtable_sync script, review the official pyairtable documentation and best practices:
+
+- **Official Documentation:** https://pyairtable.readthedocs.io/
+- **GitHub Repository:** https://github.com/gtalarico/pyairtable
+- **Key Topics to Review:**
+  - API authentication and connection setup
+  - Rate limiting and best practices
+  - Batch operations for efficiency
+  - Error handling patterns
+  - Field type handling (dates, linked records, etc.)
+  - Pagination for large datasets
+  - Update vs create operations
+
+**Note:** Understanding these best practices will help avoid common pitfalls and ensure efficient, reliable syncing.
+
+---
+
 ### Phase 1: Setup and Connectivity Testing
 
 #### 1.1 Install Python Airtable Library
@@ -33,8 +54,8 @@ pip install pyairtable
 ```python
 from pyairtable import Api
 
-# Hardcoded credentials (replace with actual values)
-AIRTABLE_API_KEY = "YOUR_AIRTABLE_API_KEY"  # patdMoOPya9xAXGLG.3a26ab...
+# Hardcoded credentials (hardcode these in the script)
+AIRTABLE_API_KEY = "patdMoOPya9xAXGLG.3a26ab9163b441fa24a5e1edc3d775c4608e447dd7c0ffa50d6de697d121c022"
 BASE_ID = "appaquqFN7vvvZGcq"
 
 # Initialize API
@@ -961,16 +982,24 @@ backend/utils/airtable_sync/
 
 ## Next Steps
 
-1. Implement `airtable_sync.py` following this plan
-2. Test connectivity and data pulling
-3. Verify field mappings with actual Airtable schema
-4. Test sync with a small subset of data first
-5. Run full sync and review reports
-6. Schedule regular syncs (e.g., daily cron job)
+1. **Review pyairtable documentation and best practices** (see Phase 0.1 above)
+2. Implement `airtable_sync.py` following this plan
+   - **IMPORTANT:** Hardcode the Airtable API key in the script: `"patdMoOPya9xAXGLG.3a26ab9163b441fa24a5e1edc3d775c4608e447dd7c0ffa50d6de697d121c022"`
+3. Test connectivity and data pulling
+4. Verify field mappings with actual Airtable schema
+5. Test sync with a small subset of data first
+6. Run full sync and review reports
+7. Schedule regular syncs (e.g., daily cron job)
 
 ---
 
 ## Important Considerations
+
+### API Key Configuration
+- **IMPORTANT:** The Airtable API key must be hardcoded in the script
+- API Key: `"patdMoOPya9xAXGLG.3a26ab9163b441fa24a5e1edc3d775c4608e447dd7c0ffa50d6de697d121c022"`
+- Base ID: `"appaquqFN7vvvZGcq"`
+- Do not use environment variables for the API key - hardcode it directly in the script
 
 ### Field Mapping Accuracy
 - **ACTION REQUIRED:** Verify Airtable field names match the mapping dictionaries
