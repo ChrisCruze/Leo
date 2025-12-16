@@ -1,0 +1,13 @@
+2025-12-16 04:12:09,147 - AirtableSync - INFO - ================================================================================
+2025-12-16 04:12:09,147 - AirtableSync - INFO - AIRTABLE SYNC STARTING
+2025-12-16 04:12:09,147 - AirtableSync - INFO - ================================================================================
+2025-12-16 04:12:09,147 - AirtableSync - INFO - ================================================================================
+2025-12-16 04:12:09,147 - AirtableSync - INFO - PHASE 1: Testing Airtable Connectivity
+2025-12-16 04:12:09,147 - AirtableSync - INFO - ================================================================================
+2025-12-16 04:12:09,158 - urllib3.connectionpool - WARNING - Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None)) after connection broken by 'OSError('Tunnel connection failed: 403 Forbidden')': /v0/appaquqFN7vvvZGcq/tblQ0OHBit2AqaACy?pageSize=1&maxRecords=1
+2025-12-16 04:12:09,361 - urllib3.connectionpool - WARNING - Retrying (Retry(total=3, connect=None, read=None, redirect=None, status=None)) after connection broken by 'OSError('Tunnel connection failed: 403 Forbidden')': /v0/appaquqFN7vvvZGcq/tblQ0OHBit2AqaACy?pageSize=1&maxRecords=1
+2025-12-16 04:12:09,765 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'OSError('Tunnel connection failed: 403 Forbidden')': /v0/appaquqFN7vvvZGcq/tblQ0OHBit2AqaACy?pageSize=1&maxRecords=1
+2025-12-16 04:12:10,569 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'OSError('Tunnel connection failed: 403 Forbidden')': /v0/appaquqFN7vvvZGcq/tblQ0OHBit2AqaACy?pageSize=1&maxRecords=1
+2025-12-16 04:12:12,173 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'OSError('Tunnel connection failed: 403 Forbidden')': /v0/appaquqFN7vvvZGcq/tblQ0OHBit2AqaACy?pageSize=1&maxRecords=1
+2025-12-16 04:12:12,176 - AirtableSync - ERROR - ✗ Failed to connect to Airtable: HTTPSConnectionPool(host='api.airtable.com', port=443): Max retries exceeded with url: /v0/appaquqFN7vvvZGcq/tblQ0OHBit2AqaACy?pageSize=1&maxRecords=1 (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
+2025-12-16 04:12:12,177 - AirtableSync - ERROR - ✗ Fatal error during sync: HTTPSConnectionPool(host='api.airtable.com', port=443): Max retries exceeded with url: /v0/appaquqFN7vvvZGcq/tblQ0OHBit2AqaACy?pageSize=1&maxRecords=1 (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
