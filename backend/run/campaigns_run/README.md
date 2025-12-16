@@ -142,12 +142,17 @@ self.airtable_sync.save_message(message_record)
 **Message Field Mapping:**
 ```python
 # Fields to sync to Airtable Messages table
+# Note: These fields match the message_record structure from fill_the_table.py
 MESSAGES_FIELD_MAPPING = {
     'id': 'id',
-    'user_id': 'user_id',
-    'event_id': 'event_id',
     'user_name': 'user_name',
     'event_name': 'event_name',
+    'user_id': 'user_id',
+    'event_id': 'event_id',
+    'user_email': 'user_email',
+    'user_phone': 'user_phone',
+    'user_summary': 'user_summary',
+    'event_summary': 'event_summary',
     'message_text': 'message',  # Note: 'message' field in Airtable
     'personalization_notes': 'personalization_notes',
     'character_count': 'character_count',
@@ -155,8 +160,8 @@ MESSAGES_FIELD_MAPPING = {
     'confidence_percentage': 'confidence_percentage',
     'reasoning': 'reasoning',
     'status': 'status',
-    'campaign': 'campaign',
     'generated_at': 'createdAt',
+    'campaign': 'campaign',
     'updatedAt': 'updatedAt',
 }
 ```
