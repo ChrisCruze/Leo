@@ -614,7 +614,21 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Failed to update: ${response.status}`);
+                    // Try to get detailed error message from Airtable
+                    let errorMessage = `Failed to update: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.error) {
+                            errorMessage = `Airtable error: ${errorData.error.message || JSON.stringify(errorData.error)}`;
+                            console.error('Airtable error details:', errorData);
+                        }
+                    } catch (e) {
+                        // If we can't parse the error, use the status
+                        const errorText = await response.text();
+                        console.error('Airtable error response:', errorText);
+                        errorMessage = `Failed to update: ${response.status} - ${errorText}`;
+                    }
+                    throw new Error(errorMessage);
                 }
 
                 const updatedRecord = await response.json();
@@ -631,7 +645,7 @@
 
             } catch (error) {
                 console.error('Error updating message:', error);
-                showToast('Failed to update message', 'error');
+                showToast(`Failed to update message: ${error.message}`, 'error');
                 throw error;
             }
         }
@@ -1258,13 +1272,10 @@
 
             let sendSucceeded = false;
             try {
+                // sendNotification already handles SMS sending via channels: ['sms']
                 await sendNotification(userId, messageText, eventId);
-                try {
-                    await sendSMS(messageText);
-                } catch (smsError) {
-                    console.error('Error sending SMS notification:', smsError);
-                }
 
+                // Update Airtable with status and sent_at timestamp
                 await updateMessageInAirtable(messageId, {
                     'status': 'sent',
                     'sent_at': new Date().toISOString()
