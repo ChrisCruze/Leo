@@ -576,6 +576,7 @@
                 userPhone: fields['user_phone'] || '',
                 eventName: fields['event_name'] || 'Unknown Event',
                 eventId: fields['event_id'] || '',
+                eventDate: fields['event_date'] || null,
 
                 // Context fields
                 reasoning: fields['reasoning'] || '',
@@ -836,6 +837,7 @@
             const tableData = appState.filteredMessages.map(msg => [
                 escapeHtml(msg.userName),
                 escapeHtml(msg.eventName),
+                msg.eventDate ? formatDate(msg.eventDate) : '-',
                 truncateText(escapeHtml(msg.message), 100),
                 getStatusBadgeHtml(msg.status),
                 msg.campaign ? escapeHtml(msg.campaign) : '-',
@@ -850,6 +852,7 @@
                 columns: [
                     { title: 'User' },
                     { title: 'Event' },
+                    { title: 'Event Date', type: 'date' },
                     { title: 'Message' },
                     { title: 'Status', orderable: true },
                     { title: 'Campaign' },
@@ -857,7 +860,7 @@
                     { title: 'Created', type: 'date' },
                     { title: 'Actions', orderable: false }
                 ],
-                order: [[6, 'desc']], // Sort by created date descending
+                order: [[7, 'desc']], // Sort by created date descending
                 pageLength: 25,
                 lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
                 dom: 'Bfrtip',
@@ -870,14 +873,14 @@
                         extend: 'csv',
                         text: 'Export CSV',
                         exportOptions: {
-                            columns: [0, 1, 2, 3, 4, 5, 6] // Exclude actions column
+                            columns: [0, 1, 2, 3, 4, 5, 6, 7] // Exclude actions column
                         }
                     },
                     {
                         extend: 'excel',
                         text: 'Export Excel',
                         exportOptions: {
-                            columns: [0, 1, 2, 3, 4, 5, 6]
+                            columns: [0, 1, 2, 3, 4, 5, 6, 7]
                         }
                     }
                 ],
@@ -996,6 +999,11 @@
                             <p class="text-sm text-gray-600">
                                 <i class="fas fa-calendar-alt text-xs text-gray-400 mr-2"></i>${escapeHtml(message.eventName)}
                             </p>
+                            ${message.eventDate ? `
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <i class="fas fa-clock text-xs text-gray-400 mr-2"></i>${formatDate(message.eventDate)}
+                                </p>
+                            ` : ''}
                         </div>
                         ${message.confidenceScore ? `
                             <div class="flex flex-col items-center">
@@ -1377,6 +1385,7 @@
             document.getElementById('modal-event-info').innerHTML = `
                 <p><strong>Name:</strong> ${escapeHtml(message.eventName)}</p>
                 <p><strong>ID:</strong> <code class="text-xs bg-gray-200 px-1 rounded">${escapeHtml(message.eventId)}</code></p>
+                ${message.eventDate ? `<p><strong>Date:</strong> ${formatDate(message.eventDate)}</p>` : ''}
             `;
 
             // User summary (show if exists)
