@@ -838,7 +838,7 @@
                 escapeHtml(msg.userName),
                 escapeHtml(msg.eventName),
                 msg.eventDate ? formatDate(msg.eventDate) : '-',
-                truncateText(escapeHtml(msg.message), 100),
+                escapeHtml(msg.message),
                 getStatusBadgeHtml(msg.status),
                 msg.campaign ? escapeHtml(msg.campaign) : '-',
                 msg.confidenceScore ? `${msg.confidenceScore}%` : '-',
@@ -1017,7 +1017,7 @@
 
                     <!-- Message Preview -->
                     <div class="mb-4">
-                        <p class="text-gray-700 leading-relaxed line-clamp-3">
+                        <p class="text-gray-700 leading-relaxed">
                             "${escapeHtml(message.message)}"
                         </p>
                     </div>
