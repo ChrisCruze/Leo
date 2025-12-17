@@ -239,6 +239,7 @@
                     <tr>
                         <th>User</th>
                         <th>Event</th>
+                        <th>Event Date</th>
                         <th>Message</th>
                         <th>Status</th>
                         <th>Campaign</th>
@@ -831,6 +832,16 @@
             // Destroy existing table if it exists
             if (dataTable) {
                 dataTable.destroy();
+                dataTable = null;
+            }
+
+            // Clear table HTML to ensure clean state
+            const table = document.getElementById('messages-table');
+            if (table) {
+                const tbody = table.querySelector('tbody');
+                if (tbody) {
+                    tbody.innerHTML = '';
+                }
             }
 
             // Prepare data for DataTables
