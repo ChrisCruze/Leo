@@ -54,6 +54,7 @@ sys.path.insert(0, backend_dir)
 from utils.report_creation.report_generator import generate_report
 from utils.firebase_manage.firebase_manager import FirebaseManager
 from utils.mongodb_pull.mongodb_pull import MongoDBPull
+from utils.airtable_sync.airtable_sync import upload_message_to_airtable
 
 # ============================================================================
 # LOGGING SETUP (matching leo_automation.py)
@@ -169,7 +170,7 @@ class FillTheTableCampaign:
         try:
             # Use mongodb_pull helper for MongoDB connection
             self.mongodb_pull = MongoDBPull(logger=self.logger)
-            self.mongo_client = self.mongodb_pull.connection.client
+            self.mongo_client = self.mongodb_pull.connection.get_client()
             self.db = self.mongodb_pull.connection.get_database()
             self.users_collection = self.db['user']
             self.events_collection = self.db['event']
@@ -686,17 +687,17 @@ GOAL: Drive RSVPs and attendance (fill underbooked events). Motivate immediate a
 
 SMS BEST PRACTICES:
 1) LENGTH: <180 chars total (including link). Be concise.
-2) TONE: Friendly, concise, 0–2 relevant emojis.
+2) TONE: Friendly, concise, NO EMOJIS - use text only.
 3) STRUCTURE: [Greeting + Name] [Hook tied to interests/occupation/location] [Spots left + time urgency + social proof] [CTA + link at end].
 4) SCARCITY: Make spots left/time explicit; small-group feel when true.
 5) SOCIAL PROOF: Mention participants already in if available.
 6) PROXIMITY: Call out neighborhood convenience explicitly.
 7) CTA: Tie directly to link (“Tap to RSVP: {event_link}”); link must be last.
 8) PERSONALIZATION: Adjust tone for age/gender/role; if engagement_status is dormant/churned or days_inactive > 30, add a warm welcome-back/reunion vibe and nod to time away. If active, keep momentum.
-9) AVOID: ALL CAPS, multiple questions, generic hype, long sentences, excessive punctuation.
+9) AVOID: ALL CAPS, multiple questions, generic hype, long sentences, excessive punctuation, EMOJIS.
 
-EXAMPLES (with links):
-- "Hey Sarah! 🍜 Ramen night Thu 7:30p near Midtown, 4 spots left—cozy group, Japanese flavors you love. Tap to RSVP: https://cucu.li/bookings/12345"
+EXAMPLES (with links, NO emojis):
+- "Hey Sarah! Ramen night Thu 7:30p near Midtown, 4 spots left—cozy group, Japanese flavors you love. Tap to RSVP: https://cucu.li/bookings/12345"
 - "Hi Mike! Comedy + dinner near West Village tomorrow, only 3 seats—friends already in. Tap to RSVP: https://cucu.li/bookings/12345"
 - "Hi Priya! Mexican supper near SoMa, 2 spots left; walkable from you. Tap to RSVP: https://cucu.li/bookings/12345"
 
@@ -999,6 +1000,17 @@ Return a JSON object:
                     # Save message using FirebaseManager
                     self.firebase_manager.save_message(message_record)
                     self.logger.info(f"  ✓ Saved message to Firebase for {user_name_full}")
+                    
+                    # Upload message to Airtable
+                    try:
+                        success, record_id = upload_message_to_airtable(message_record, logger_instance=self.logger)
+                        if success:
+                            self.logger.info(f"  ✓ Saved message to Airtable: {record_id}")
+                        else:
+                            self.logger.warning(f"  ⚠ Failed to save message to Airtable")
+                    except Exception as e:
+                        self.logger.error(f"  ✗ Error uploading message to Airtable: {e}")
+                        # Continue processing even if Airtable upload fails
 
                     self.logger.info(f"  ✓ Matched {user_name_full} (confidence: {confidence_percentage}%)")
 

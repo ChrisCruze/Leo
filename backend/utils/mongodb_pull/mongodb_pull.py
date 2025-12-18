@@ -98,11 +98,11 @@ DERIVED/TRANSFORMED FIELDS:
 
 3. Profile Completeness Fields:
    - profile_completeness (str): Completeness score string
-     Logic: Count filled fields from [firstName, lastName, email, phone, gender, 
-            interests, occupation, homeNeighborhood]
-            Format: "{filled}/8 ({percentage}%)"
+     Logic: Count filled fields from [interests, tableTypePreference, homeNeighborhood, 
+            gender, relationship_status]
+            Format: "{filled}/5 ({percentage}%)"
    
-   - personalization_ready (bool): True if at least 4 of 8 required fields filled
+   - personalization_ready (bool): True if at least 4 of 5 required fields filled
      Logic: filled >= 4
 
 4. Scoring Fields:
@@ -444,18 +444,37 @@ def parse_iso_date(value: Any) -> Optional[datetime]:
 
 def is_profile_complete(user: Dict[str, Any]) -> bool:
     """
-    Check if user profile is complete (at least 4 of 8 required fields).
+    Check if user profile is complete (at least 4 of 5 required fields).
     
-    Required fields: firstName, lastName, email, phone, gender, interests, occupation, homeNeighborhood
+    Required fields: interests, tableTypePreference, homeNeighborhood, gender, relationship_status
     
     Args:
         user: User dictionary
         
     Returns:
-        True if at least 4 of 8 required fields are filled.
+        True if at least 4 of 5 required fields are filled.
     """
-    required_fields = ['firstName', 'lastName', 'email', 'phone', 'gender', 'interests', 'occupation', 'homeNeighborhood']
-    filled = sum(1 for f in required_fields if user.get(f))
+    required_fields = ['interests', 'tableTypePreference', 'homeNeighborhood', 'gender', 'relationship_status']
+    
+    filled = 0
+    for field in required_fields:
+        value = user.get(field)
+        if value is not None:
+            if field == 'interests':
+                # For interests, check if it's a non-empty list with non-empty values
+                if isinstance(value, list) and len(value) > 0:
+                    # Check if list has at least one non-empty value
+                    if any(item for item in value if item):
+                        filled += 1
+            elif isinstance(value, str):
+                # For strings, check if non-empty after stripping whitespace
+                if value.strip():
+                    filled += 1
+            else:
+                # For other types (numbers, etc.), just check if truthy
+                if value:
+                    filled += 1
+    
     return filled >= 4
 
 
@@ -765,8 +784,27 @@ class UserEnrichment:
         Returns:
             Tuple of (completeness_score_string, is_ready_boolean)
         """
-        required_fields = ['firstName', 'lastName', 'email', 'phone', 'gender', 'interests', 'occupation', 'homeNeighborhood']
-        filled = sum(1 for f in required_fields if user.get(f))
+        required_fields = ['interests', 'tableTypePreference', 'homeNeighborhood', 'gender', 'relationship_status']
+        
+        filled = 0
+        for field in required_fields:
+            value = user.get(field)
+            if value is not None:
+                if field == 'interests':
+                    # For interests, check if it's a non-empty list with non-empty values
+                    if isinstance(value, list) and len(value) > 0:
+                        # Check if list has at least one non-empty value
+                        if any(item for item in value if item):
+                            filled += 1
+                elif isinstance(value, str):
+                    # For strings, check if non-empty after stripping whitespace
+                    if value.strip():
+                        filled += 1
+                else:
+                    # For other types (numbers, etc.), just check if truthy
+                    if value:
+                        filled += 1
+        
         total = len(required_fields)
         percentage = int((filled / total) * 100) if total > 0 else 0
         score_str = f"{filled}/{total} ({percentage}%)"
@@ -1470,13 +1508,17 @@ class SummaryGeneration:
         try:
             event_dt = parse_iso_date(start_date)
             if event_dt:
+                # Convert UTC to local time if timezone-aware
+                if event_dt.tzinfo is not None:
+                    event_dt = event_dt.astimezone()  # Convert to local timezone
+                
                 # Format: "Monday, Dec 15, 2025 at 7:30 PM"
                 day_of_week = event_dt.strftime('%A')
                 month_abbr = event_dt.strftime('%b')
                 day = event_dt.strftime('%d').lstrip('0')
                 year = event_dt.strftime('%Y')
                 
-                # Format time in 12-hour format with AM/PM
+                # Format time in 12-hour format with AM/PM (using local time)
                 hour = event_dt.hour
                 minute = event_dt.minute
                 if minute == 0:
@@ -1614,7 +1656,8 @@ class EventTransformation:
                 neighborhood_counter[str(hood).lower()] += 1
         
         # Calculate participant count and participation percentage
-        participant_count = len(participant_profiles)
+        # Use len(participants) to count ALL participants, not just those found in user_lookup
+        participant_count = len(participants)
         max_participants = event.get('maxParticipants') or 0
         participation_percentage = (participant_count / max_participants * 100) if max_participants > 0 else 0
         
@@ -2115,8 +2158,8 @@ class ReportGeneration:
 | `social_role` | str | **Calculation:** `event_count >= 50` → "social_leader"; `event_count >= 20` → "active_participant"; Else → "observer" | `derive_segments()` |
 | `churn_risk` | str | **Calculation:** `days_inactive >= 180` → "high"; `days_inactive >= 90` → "medium"; Else → "low" | `derive_segments()` |
 | `user_segment` | str | Priority-based classification: "Dead", "Campaign", "Fresh", "Active", "Dormant", "Inactive", "New" | `derive_segments()` |
-| `profile_completeness` | str | Count of filled required fields: "{filled}/8 ({percentage}%)" | `calculate_completeness()` |
-| `personalization_ready` | bool | `True` if at least 4 of 8 required fields are filled | `calculate_completeness()` |
+| `profile_completeness` | str | Count of filled required fields: "{filled}/5 ({percentage}%)" | `calculate_completeness()` |
+| `personalization_ready` | bool | `True` if at least 4 of 5 required fields are filled (interests, tableTypePreference, homeNeighborhood, gender, relationship_status) | `calculate_completeness()` |
 | `newcomer_score` | float (0-100) | Event history (0-50) + Profile completeness (0-30) + Account recency (0-20) | `calculate_newcomer_score()` |
 | `reactivation_score` | float (0-100) | Profile completeness (0-40) + Dormancy duration (0-30) + Event history (0-30) | `calculate_reactivation_score()` |
 | `campaign_qualifications` | Dict | Qualification flags and reasons for seat-newcomers, fill-the-table, return-to-table | `check_user_campaign_qualifications()` |

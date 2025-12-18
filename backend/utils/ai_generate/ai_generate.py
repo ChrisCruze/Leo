@@ -61,22 +61,88 @@ def ai_generate_meta_tag_parse(
     # Extract response text
     response_text = response.content[0].text
 
-    # Parse JSON using regex patterns
-    # Try to extract JSON object first
-    json_match = re.search(r'\{[\s\S]*\}', response_text)
-    if json_match:
-        json_str = json_match.group(0)
-        return json.loads(json_str)
-
-    # Try to extract JSON array
-    array_match = re.search(r'\[[\s\S]*\]', response_text)
+    # Parse JSON using more precise extraction
+    # First, try to find JSON array (for Fill The Table and similar cases)
+    array_match = re.search(r'\[[\s\S]*?\]', response_text, re.DOTALL)
     if array_match:
         json_str = array_match.group(0)
-        return json.loads(json_str)
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            pass  # Try object extraction instead
+    
+    # Try to extract JSON object (non-greedy to get first complete object)
+    json_match = re.search(r'\{[\s\S]*?\}', response_text, re.DOTALL)
+    if json_match:
+        json_str = json_match.group(0)
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            pass
+    
+    # If non-greedy didn't work, try to find the first complete JSON structure
+    # by finding balanced braces/brackets
+    def find_json_start(text, start_char='{'):
+        """Find the start of a JSON structure"""
+        if start_char == '{':
+            end_char = '}'
+        else:
+            end_char = ']'
+        
+        start_idx = text.find(start_char)
+        if start_idx == -1:
+            return None
+        
+        depth = 0
+        in_string = False
+        escape_next = False
+        
+        for i in range(start_idx, len(text)):
+            char = text[i]
+            
+            if escape_next:
+                escape_next = False
+                continue
+            
+            if char == '\\':
+                escape_next = True
+                continue
+            
+            if char == '"' and not escape_next:
+                in_string = not in_string
+                continue
+            
+            if in_string:
+                continue
+            
+            if char == start_char:
+                depth += 1
+            elif char == end_char:
+                depth -= 1
+                if depth == 0:
+                    return text[start_idx:i+1]
+        
+        return None
+    
+    # Try array first
+    json_str = find_json_start(response_text, '[')
+    if json_str:
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            pass
+    
+    # Try object
+    json_str = find_json_start(response_text, '{')
+    if json_str:
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            pass
 
-    # If no JSON found, raise error
+    # If no JSON found, raise error with more context
     raise json.JSONDecodeError(
-        f"Could not find JSON object or array in response: {response_text[:200]}...",
+        f"Could not find valid JSON object or array in response. Response preview: {response_text[:500]}...",
         response_text,
         0
     )

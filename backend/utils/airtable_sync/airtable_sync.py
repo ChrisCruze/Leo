@@ -11,6 +11,7 @@ import os
 import json
 import logging
 from datetime import datetime
+from typing import Dict, Any, Optional, Tuple
 from pyairtable import Api
 
 # ============================================================================
@@ -121,15 +122,22 @@ MESSAGES_FIELD_MAPPING = {
     'user_phone': 'user_phone',
     'user_summary': 'user_summary',
     'event_summary': 'event_summary',
-    'message_text': 'message',
+    'event_date': 'event_date',
+    'message_text': 'message',  # Legacy field name
+    'generated_message': 'message',  # New field name from campaign functions
     'personalization_notes': 'personalization_notes',
+    'filled_message_prompt': 'personalization_notes',  # The filled prompt used to generate the message
+    'message_reasoning': 'reasoning',  # Reasoning for the generated message
+    'match_reasoning': 'reasoning',  # Reasoning for why user was matched to event
+    'reasoning': 'reasoning',  # Legacy field name
     'character_count': 'character_count',
     'similarity_score': 'similarity_score',
-    'confidence_percentage': 'confidence_percentage',
-    'reasoning': 'reasoning',
+    'confidence_percentage': 'confidence_percentage',  # Legacy field name
+    'match_confidence': 'confidence_percentage',  # Confidence score for the match
+    'message_confidence': 'confidence_percentage',  # Confidence score for the message
     'status': 'status',
-    'generated_at': 'createdAt',
     'campaign': 'campaign',
+    'generated_at': 'generated_at',
     'updatedAt': 'updatedAt',
 }
 
@@ -362,6 +370,60 @@ def update_airtable_record(table, record_id, fields, airtable_fields, record_typ
         logger.error(f"✗ Failed to update {record_type} record {record_id}: {e}")
         logger.debug(f"Fields attempted: {fields}")
         return False
+
+# ============================================================================
+# REUSABLE FUNCTION FOR UPLOADING MESSAGES
+# ============================================================================
+
+def upload_message_to_airtable(message_record: Dict[str, Any], logger_instance: Optional[logging.Logger] = None) -> Tuple[bool, Optional[str]]:
+    """
+    Upload a message record to Airtable Messages table.
+    
+    This function can be imported and used by campaign scripts to upload messages
+    to Airtable when they are saved to Firebase.
+    
+    Args:
+        message_record: Dictionary containing message data with fields matching
+                        MESSAGES_FIELD_MAPPING keys
+        logger_instance: Optional logger instance. If not provided, uses module logger.
+    
+    Returns:
+        Tuple of (success: bool, record_id: Optional[str])
+        - success: True if record was created successfully, False otherwise
+        - record_id: Airtable record ID if successful, None otherwise
+    """
+    # Use provided logger or fall back to module logger
+    log = logger_instance if logger_instance else logger
+    
+    try:
+        # Initialize Airtable API connection
+        api = Api(AIRTABLE_API_KEY)
+        base = api.base(BASE_ID)
+        messages_table = base.table(MESSAGES_TABLE_ID)
+        
+        # Map fields from message_record to Airtable format
+        mapped_fields = map_fields(message_record, MESSAGES_FIELD_MAPPING)
+        
+        # Create new record in Airtable
+        created_record = messages_table.create(mapped_fields)
+        record_id = created_record['id']
+        
+        log.info(f"✓ Created message record in Airtable: {record_id}")
+        return True, record_id
+        
+    except Exception as e:
+        log.error(f"✗ Failed to upload message to Airtable: {e}")
+        log.error(f"Base ID: {BASE_ID}")
+        log.error(f"Table ID: {MESSAGES_TABLE_ID}")
+        log.error(f"Full message record attempted:")
+        log.error(json.dumps(message_record, indent=2, default=str))
+        log.error(f"Mapped fields that would have been uploaded:")
+        try:
+            mapped_fields = map_fields(message_record, MESSAGES_FIELD_MAPPING)
+            log.error(json.dumps(mapped_fields, indent=2, default=str))
+        except Exception as map_error:
+            log.error(f"Failed to map fields: {map_error}")
+        return False, None
 
 # ============================================================================
 # PHASE 7: SYNC PROCESS

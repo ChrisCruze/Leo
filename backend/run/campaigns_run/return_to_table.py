@@ -55,6 +55,7 @@ sys.path.insert(0, backend_dir)
 from utils.report_creation.report_generator import generate_report
 from utils.firebase_manage.firebase_manager import FirebaseManager
 from utils.mongodb_pull.mongodb_pull import MongoDBPull
+from utils.airtable_sync.airtable_sync import upload_message_to_airtable
 
 # ============================================================================
 # LOGGING SETUP (matching leo_automation.py)
@@ -170,7 +171,7 @@ class ReturnToTableCampaign:
         try:
             # Use mongodb_pull helper for MongoDB connection
             self.mongodb_pull = MongoDBPull(logger=self.logger)
-            self.mongo_client = self.mongodb_pull.connection.client
+            self.mongo_client = self.mongodb_pull.connection.get_client()
             self.db = self.mongodb_pull.connection.get_database()
             self.users_collection = self.db['user']
             self.events_collection = self.db['event']
@@ -956,6 +957,17 @@ Return a JSON object:
                 # Save message using FirebaseManager
                 self.firebase_manager.save_message(message_record)
                 self.logger.info(f"  ✓ Saved message to Firebase for {user_name_full}")
+                
+                # Upload message to Airtable
+                try:
+                    success, record_id = upload_message_to_airtable(message_record, logger_instance=self.logger)
+                    if success:
+                        self.logger.info(f"  ✓ Saved message to Airtable: {record_id}")
+                    else:
+                        self.logger.warning(f"  ⚠ Failed to save message to Airtable")
+                except Exception as e:
+                    self.logger.error(f"  ✗ Error uploading message to Airtable: {e}")
+                    # Continue processing even if Airtable upload fails
 
                 self.logger.info(f"  ✓ Matched {user_name_full} (confidence: {match.get('confidence_percentage', 0)}%)")
 
